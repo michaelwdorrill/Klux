@@ -1,5 +1,6 @@
 import { DEFAULT_CONFIG } from './config';
 import { startGame, step } from './core/game';
+import { spawnIntervalMs } from './core/waves';
 import type { GameState } from './core/types';
 import { Renderer } from './render/Renderer';
 import { InputManager } from './input/InputManager';
@@ -89,9 +90,13 @@ function frame(now: number): void {
     acc -= FIXED_MS;
   }
 
-  // Ramp music tempo when wave advances
+  // Ramp music tempo with the actual game tempo (spawn interval), so music
+  // tracks the speed ramp instead of marching ahead on raw wave count.
   if (state.wave.index !== lastWaveIndex) {
-    audio.setWave(state.wave.index);
+    const { baseSpawnMs, minSpawnMs, spawnStepPerWave } = state.config;
+    const spawnMs = spawnIntervalMs(state.wave.index, baseSpawnMs, minSpawnMs, spawnStepPerWave);
+    const factor = (baseSpawnMs - spawnMs) / (baseSpawnMs - minSpawnMs);
+    audio.setSpeedFactor(factor);
     lastWaveIndex = state.wave.index;
   }
 
