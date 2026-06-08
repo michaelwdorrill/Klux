@@ -6,7 +6,7 @@ A Klax-inspired tile matching game — playable in any browser, installable as a
 
 ## Play
 
-**[Play KLUX →](https://michaelwdorrill.github.io/klux/)**
+**[Play KLUX →](https://michaelwdorrill.github.io/Klux/)**
 
 ## Controls
 
