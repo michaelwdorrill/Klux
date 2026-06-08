@@ -12,8 +12,11 @@ import { OnScreenControls } from './input/OnScreenControls';
 import { Audio } from './audio/Audio';
 import type { Command } from './core/commands';
 import { loadHighScores, recordScore, getMuted, setMuted } from './persistence/store';
+import { NameEntry } from './ui/NameEntry';
+import { postScore, getTopScores } from './leaderboard';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
+const nameEntry = new NameEntry();
 const USE_3D = true;
 const renderer: Renderer = USE_3D ? new Renderer3D(canvas) : new Renderer(canvas);
 const audio = new Audio();
@@ -138,17 +141,29 @@ function frame(now: number): void {
     audio.sfxWaveClear();
   }
 
-  // On game-over, record the score and flag a new best for the overlay
+  // On game-over, record local best and show name-entry for leaderboard
   if (state.phase === 'gameOver' && lastPhase !== 'gameOver') {
     const isNewBest = recordScore(state.mode, state.score);
     renderer.setNewBest(isNewBest);
+    renderer.setLeaderboard(null);
     if (isNewBest) {
       highScores = loadHighScores();
       renderer.setHighScores(highScores);
     }
+    const capturedMode  = state.mode;
+    const capturedScore = state.score;
+    const capturedWave  = state.wave.index + 1;
+    nameEntry.show(async (name) => {
+      nameEntry.hide();
+      await postScore(capturedMode, name, capturedScore, capturedWave);
+      const entries = await getTopScores(capturedMode, 10);
+      renderer.setLeaderboard(entries, capturedScore);
+    });
   }
   if (state.phase === 'playing' && lastPhase !== 'playing') {
     renderer.setNewBest(false);
+    renderer.setLeaderboard(null);
+    nameEntry.hide();
   }
 
   // Per-frame SFX (catch + foul). Klux/Wow handled per-clear below.

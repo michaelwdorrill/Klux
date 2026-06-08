@@ -4,6 +4,7 @@ import { drawTile, drawGhostTile, FILL_COLORS } from './tiles';
 import { Effects } from './effects';
 import { getWave } from '../core/waves';
 import type { HighScores } from '../persistence/store';
+import type { LeaderboardEntry } from '../leaderboard';
 
 const BG = '#1a1a2e';
 const WELL_BG = '#16213e';
@@ -26,6 +27,8 @@ export class Renderer {
   private lastFrameMs = 0;
   private highScores: HighScores = { classic: 0, endless: 0 };
   private newBest = false;
+  private leaderboard: LeaderboardEntry[] | null = null;
+  private leaderboardPlayerScore = 0;
   debugMode = false;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -117,6 +120,10 @@ export class Renderer {
 
   setHighScores(h: HighScores): void { this.highScores = h; }
   setNewBest(b: boolean): void { this.newBest = b; }
+  setLeaderboard(entries: LeaderboardEntry[] | null, playerScore = 0): void {
+    this.leaderboard       = entries;
+    this.leaderboardPlayerScore = playerScore;
+  }
 
   private drawDebug(state: GameState, w: number): void {
     const { ctx } = this;
@@ -234,14 +241,81 @@ export class Renderer {
         ctx.fillText(`Best ${state.mode}: ${best.toLocaleString()}`, cx, cy - subSize * 0.1);
       }
 
-      ctx.fillStyle = 'rgba(200,200,220,0.75)';
-      ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('Tap CLASSIC or ENDLESS to play again', cx, cy + subSize * 1.4);
+      if (this.leaderboard !== null && this.leaderboard.length > 0) {
+        this.drawLeaderboardPanel(ctx, cx, cy + subSize * 1.0, subSize, w, this.leaderboard, this.leaderboardPlayerScore);
+      } else if (this.leaderboard !== null) {
+        // submitted but board is empty (unlikely) — just show play-again
+        ctx.fillStyle = 'rgba(200,200,220,0.75)';
+        ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.fillText('Tap CLASSIC or ENDLESS to play again', cx, cy + subSize * 1.4);
+      } else {
+        // waiting for name entry — show hint
+        ctx.fillStyle = 'rgba(200,200,220,0.55)';
+        ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.fillText('Enter your initials above to submit your score', cx, cy + subSize * 1.4);
+      }
 
-      ctx.fillStyle = 'rgba(140,140,160,0.5)';
-      ctx.font = `${subSize * 0.75}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('or press 1 / 2 · Enter restarts same mode', cx, cy + subSize * 2.6);
+      if (this.leaderboard !== null) {
+        ctx.fillStyle = 'rgba(200,200,220,0.75)';
+        ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.fillText('Tap CLASSIC or ENDLESS to play again', cx, h - subSize * 2.2);
+        ctx.fillStyle = 'rgba(140,140,160,0.5)';
+        ctx.font = `${subSize * 0.75}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.fillText('or press 1 / 2 · Enter restarts same mode', cx, h - subSize * 1.1);
+      }
     }
+  }
+
+  private drawLeaderboardPanel(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    topY: number,
+    subSize: number,
+    w: number,
+    entries: LeaderboardEntry[],
+    playerScore: number,
+  ): void {
+    const rowH    = subSize * 1.55;
+    const panelW  = Math.min(340, w * 0.85);
+    const panelH  = rowH * (entries.length + 1) + 8;
+    const px      = cx - panelW / 2;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(10,14,28,0.75)';
+    ctx.beginPath();
+    ctx.roundRect(px, topY, panelW, panelH, 8);
+    ctx.fill();
+
+    // Header
+    ctx.fillStyle = 'rgba(155,209,255,0.7)';
+    ctx.font = `bold ${subSize * 0.78}px 'Segoe UI', system-ui, sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('#', px + 10, topY + rowH * 0.5);
+    ctx.fillText('NAME', px + 36, topY + rowH * 0.5);
+    ctx.textAlign = 'right';
+    ctx.fillText('SCORE', px + panelW - 10, topY + rowH * 0.5);
+
+    for (let i = 0; i < entries.length; i++) {
+      const e    = entries[i];
+      const ry   = topY + rowH * (i + 1) + 4;
+      const isMe = e.score === playerScore;
+
+      if (isMe) {
+        ctx.fillStyle = 'rgba(255,209,102,0.12)';
+        ctx.fillRect(px + 2, ry - rowH * 0.5, panelW - 4, rowH);
+      }
+
+      const rankColor = i === 0 ? '#ffd700' : i === 1 ? '#c0c0c0' : i === 2 ? '#cd7f32' : isMe ? '#ffd166' : 'rgba(200,200,220,0.7)';
+      ctx.fillStyle = rankColor;
+      ctx.font = `${isMe ? 'bold ' : ''}${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText(`${i + 1}`, px + 10, ry);
+      ctx.fillText(e.name, px + 36, ry);
+      ctx.textAlign = 'right';
+      ctx.fillText(e.score.toLocaleString(), px + panelW - 10, ry);
+    }
+    ctx.restore();
   }
 
   private drawWell(state: GameState, layout: Layout, hoveredLane: number | null = null): void {
