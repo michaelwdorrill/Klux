@@ -28,7 +28,6 @@ export class PointerAdapter implements InputAdapter {
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly getLayout: () => Layout | null,
-    private readonly getPaddleLane: () => number,
   ) {
     this.onPointerMove = (e) => this.handleMove(e);
     this.onPointerLeave = () => { this._hoveredLane = null; };
@@ -91,20 +90,20 @@ export class PointerAdapter implements InputAdapter {
 
   private handleMove(e: PointerEvent): void {
     if (e.pointerType === 'touch') return; // let TouchAdapter own touch events
-    this._hoveredLane = this.laneAt(e);
+    const lane = this.laneAt(e);
+    if (lane !== null && lane !== this._hoveredLane) {
+      this._hoveredLane = lane;
+      this.emit?.({ type: 'MOVE_TO', lane });
+    } else {
+      this._hoveredLane = lane;
+    }
   }
 
   private handleClick(e: MouseEvent): void {
     if (!this.emit) return;
     const lane = this.laneAt(e);
     if (lane === null) return;
-
-    if (lane === this.getPaddleLane()) {
-      // Already on this lane — treat click as DROP
-      this.emit({ type: 'DROP' });
-    } else {
-      this.emit({ type: 'MOVE_TO', lane });
-    }
+    this.emit({ type: 'DROP' });
   }
 
   private handleContextMenu(e: MouseEvent): void {

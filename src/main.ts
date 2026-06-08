@@ -3,6 +3,7 @@ import { startGame, step } from './core/game';
 import { spawnIntervalMs } from './core/waves';
 import type { GameState } from './core/types';
 import { Renderer } from './render/Renderer';
+import { Renderer3D } from './render/Renderer3D';
 import { InputManager } from './input/InputManager';
 import { KeyboardAdapter } from './input/KeyboardAdapter';
 import { TouchAdapter } from './input/TouchAdapter';
@@ -13,7 +14,8 @@ import type { Command } from './core/commands';
 import { loadHighScores, recordScore, getMuted, setMuted } from './persistence/store';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
-const renderer = new Renderer(canvas);
+const USE_3D = true;
+const renderer: Renderer = USE_3D ? new Renderer3D(canvas) : new Renderer(canvas);
 const audio = new Audio();
 const input = new InputManager();
 
@@ -23,7 +25,6 @@ const onScreenControls = new OnScreenControls();
 const pointerAdapter = new PointerAdapter(
   canvas,
   () => renderer.getLayout(),
-  () => state.paddleLane,
 );
 input.register(new KeyboardAdapter());
 input.register(new TouchAdapter(
