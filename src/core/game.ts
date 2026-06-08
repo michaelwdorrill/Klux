@@ -215,7 +215,8 @@ export function startGame(config: GameConfig): GameState {
 /** Pure reducer: (state, dtMs, commands) → next state. No I/O. */
 export function step(state: GameState, dtMs: number, commands: Command[]): GameState {
   if (state.phase !== 'playing') {
-    let s = state;
+    // Clear transient FX so sounds don't loop while game is paused/over
+    let s: GameState = { ...state, fx: { clears: [], chainStep: 0, lastFoul: undefined, caught: false } };
     for (const cmd of commands) s = applyCommand(s, cmd);
     return s;
   }
