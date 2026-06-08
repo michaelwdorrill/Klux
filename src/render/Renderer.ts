@@ -29,6 +29,13 @@ export class Renderer {
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
+    // Re-resize whenever the canvas's CSS dimensions change (e.g. when the
+    // on-screen controls bar appears/disappears around mode picks and pauses).
+    // Without this the pixel buffer keeps its old size and renders compressed.
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => this.resize());
+      ro.observe(canvas);
+    }
   }
 
   resize(): void {
@@ -449,15 +456,18 @@ export class Renderer {
       }
       y += 8;
 
-      ctx.fillStyle = TEXT_DIM;
-      ctx.font = `${fontSize - 1}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText(state.mode === 'endless' ? 'WAVES' : 'WAVE', cx, y);
-      y += fontSize + 2;
+      // Wave counter — classic only; endless is one continuous run
+      if (state.mode === 'classic') {
+        ctx.fillStyle = TEXT_DIM;
+        ctx.font = `${fontSize - 1}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.fillText('WAVE', cx, y);
+        y += fontSize + 2;
 
-      ctx.fillStyle = TEXT_PRIMARY;
-      ctx.font = `bold ${fontSize + 2}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText(`${state.wave.index + 1}`, cx, y);
-      y += fontSize + 14;
+        ctx.fillStyle = TEXT_PRIMARY;
+        ctx.font = `bold ${fontSize + 2}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.fillText(`${state.wave.index + 1}`, cx, y);
+        y += fontSize + 14;
+      }
 
       ctx.fillStyle = TEXT_DIM;
       ctx.font = `${fontSize - 1}px 'Segoe UI', system-ui, sans-serif`;
