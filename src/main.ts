@@ -6,17 +6,16 @@ import { InputManager } from './input/InputManager';
 import { KeyboardAdapter } from './input/KeyboardAdapter';
 import { TouchAdapter } from './input/TouchAdapter';
 import { OnScreenControls } from './input/OnScreenControls';
+import { Audio } from './audio/Audio';
 import type { Command } from './core/commands';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const renderer = new Renderer(canvas);
+const audio = new Audio();
 const input = new InputManager();
 
-// Start in title phase
 let state: GameState = { ...startGame(DEFAULT_CONFIG), phase: 'title' };
 
-// All adapters registered; InputManager activates each one whose isApplicable() is true.
-// Keyboard + touch can both be active simultaneously on hybrid devices.
 const onScreenControls = new OnScreenControls();
 input.register(new KeyboardAdapter());
 input.register(new TouchAdapter(
@@ -37,9 +36,18 @@ applyCanvasSize();
 window.addEventListener('resize', applyCanvasSize);
 window.addEventListener('orientationchange', applyCanvasSize);
 
-// Backtick toggles debug overlay
+// Unlock AudioContext on first gesture (browser autoplay policy)
+const unlockAudio = () => audio.unlock();
+window.addEventListener('keydown', unlockAudio);
+window.addEventListener('pointerdown', unlockAudio);
+
+// Load background music — put your Suno export at public/audio/theme.mp3
+audio.loadMusic('./audio/theme.mp3');
+
+// Backtick toggles debug overlay; M toggles mute
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Backquote') renderer.debugMode = !renderer.debugMode;
+  if (e.code === 'KeyM') audio.toggleMute();
 });
 
 const FIXED_MS = 1000 / 60;
@@ -48,21 +56,20 @@ const WAVE_CLEAR_AUTO_MS = 3000;
 let acc = 0;
 let last = performance.now();
 let waveClearEnteredAt: number | null = null;
+let lastWaveIndex = -1;
+let lastPhase = state.phase;
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && state.phase === 'playing') {
     state = { ...state, phase: 'paused' };
   }
-  if (!document.hidden) {
-    last = performance.now();
-  }
+  if (!document.hidden) last = performance.now();
 });
 
 function frame(now: number): void {
   acc += Math.min(now - last, 250);
   last = now;
 
-  // Auto-advance wave-clear screen after timeout
   const extraCmds: Command[] = [];
   if (state.phase === 'waveClear') {
     if (waveClearEnteredAt === null) waveClearEnteredAt = now;
@@ -80,9 +87,22 @@ function frame(now: number): void {
     acc -= FIXED_MS;
   }
 
-  // Keep on-screen controls in sync with game phase
-  onScreenControls.update(state.phase);
+  // Ramp music tempo when wave advances
+  if (state.wave.index !== lastWaveIndex) {
+    audio.setWave(state.wave.index);
+    lastWaveIndex = state.wave.index;
+  }
 
+  // Play wave-clear jingle on transition
+  if (state.phase === 'waveClear' && lastPhase === 'playing') {
+    audio.sfxWaveClear();
+  }
+
+  // Consume per-frame SFX events
+  audio.consume(state.fx);
+  lastPhase = state.phase;
+
+  onScreenControls.update(state.phase);
   renderer.draw(state, acc / FIXED_MS);
   requestAnimationFrame(frame);
 }

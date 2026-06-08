@@ -117,7 +117,7 @@ src/
 - [x] **Phase 4** — Keyboard adapter + playable desktop game
 - [x] **Phase 5** — Conveyor timing, waves, game-over
 - [x] **Phase 6** — Touch + on-screen controls
-- [ ] **Phase 7** — Audio (synthesized SFX)
+- [x] **Phase 7** — Audio (synthesized SFX)
 - [ ] **Phase 8** — Polish FX (particles, screen shake, colorblind cues)
 - [ ] **Phase 9** — UI screens + persistence
 - [ ] **Phase 10** — PWA + GitHub Pages deploy

@@ -110,7 +110,7 @@ export class Renderer {
       ctx.fillText('Press Enter to play', cx, cy);
       ctx.fillStyle = 'rgba(140,140,160,0.6)';
       ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('Arrow keys / WASD  ·  Space = drop  ·  P = pause', cx, cy + subSize * 1.8);
+      ctx.fillText('Arrow keys / WASD  ·  Space = drop  ·  P = pause  ·  M = mute', cx, cy + subSize * 1.8);
     }
 
     if (state.phase === 'paused') {
