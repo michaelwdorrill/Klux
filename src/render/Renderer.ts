@@ -7,8 +7,10 @@ import type { HighScores } from '../persistence/store';
 
 const BG = '#1a1a2e';
 const WELL_BG = '#16213e';
+const WELL_HOVER = '#1a2d55';
 const WELL_LINE = '#0f3460';
 const CONVEYOR_BG = '#0d1b2a';
+const CONVEYOR_HOVER = '#112038';
 const PADDLE_ACTIVE = '#2a4a7a';
 const PADDLE_BG = '#1e2d4a';
 const TEXT_PRIMARY = '#e0e0e0';
@@ -51,7 +53,7 @@ export class Renderer {
     return this.layout;
   }
 
-  draw(state: GameState, alpha: number): void {
+  draw(state: GameState, alpha: number, hoveredLane: number | null = null): void {
     const dpr = window.devicePixelRatio || 1;
     const w = this.canvas.width / dpr;
     const h = this.canvas.height / dpr;
@@ -74,8 +76,8 @@ export class Renderer {
     const shake = this.effects.shakeOffset();
     ctx.save();
     ctx.translate(shake.x, shake.y);
-    this.drawWell(state, layout);
-    this.drawConveyor(state, layout, alpha);
+    this.drawWell(state, layout, hoveredLane);
+    this.drawConveyor(state, layout, alpha, hoveredLane);
     this.drawPaddle(state, layout);
     this.effects.drawWorld(ctx);
     ctx.restore();
@@ -230,7 +232,7 @@ export class Renderer {
     }
   }
 
-  private drawWell(state: GameState, layout: Layout): void {
+  private drawWell(state: GameState, layout: Layout, hoveredLane: number | null = null): void {
     const { ctx } = this;
     const { cellSize, cols, rows, wellOrigin } = layout;
 
@@ -240,11 +242,11 @@ export class Renderer {
       for (let col = 0; col < cols; col++) {
         const x = wellOrigin.x + col * cellSize;
         const y = wellOrigin.y + (rows - 1 - row) * cellSize;
-        ctx.fillStyle = WELL_BG;
+        ctx.fillStyle = col === hoveredLane ? WELL_HOVER : WELL_BG;
         ctx.beginPath();
         ctx.roundRect(x + 1, y + 1, cellSize - 2, cellSize - 2, 3);
         ctx.fill();
-        ctx.strokeStyle = WELL_LINE;
+        ctx.strokeStyle = col === hoveredLane ? '#4a90d9' : WELL_LINE;
         ctx.lineWidth = 1;
         ctx.stroke();
       }
@@ -268,14 +270,14 @@ export class Renderer {
     ctx.strokeRect(wellOrigin.x, wellOrigin.y, cellSize * cols, cellSize * rows);
   }
 
-  private drawConveyor(state: GameState, layout: Layout, alpha: number): void {
+  private drawConveyor(state: GameState, layout: Layout, alpha: number, hoveredLane: number | null = null): void {
     const { ctx } = this;
     const { cellSize, cols, conveyorRows, conveyorOrigin } = layout;
 
     // Lane tracks
     for (let col = 0; col < cols; col++) {
       const x = conveyorOrigin.x + col * cellSize;
-      ctx.fillStyle = CONVEYOR_BG;
+      ctx.fillStyle = col === hoveredLane ? CONVEYOR_HOVER : CONVEYOR_BG;
       ctx.fillRect(x + 1, conveyorOrigin.y, cellSize - 2, cellSize * conveyorRows);
 
       // Dashed lane divider
