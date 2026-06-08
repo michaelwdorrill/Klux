@@ -186,7 +186,7 @@ function startWave(state: GameState, waveIndex: number): GameState {
     tilesFedThisWave: 0,
     spawnTimer: spawnIntervalMs(waveIndex, state.config.baseSpawnMs, state.config.minSpawnMs, state.config.spawnStepPerWave),
     conveyor: [],
-    fx: { clears: [], chainStep: 0 },
+    fx: { clears: [], chainStep: 0, caught: false },
   };
 }
 
@@ -208,7 +208,7 @@ export function startGame(config: GameConfig): GameState {
     nextTileId: 1,
     spawnTimer: config.baseSpawnMs,
     rng,
-    fx: { clears: [], chainStep: 0 },
+    fx: { clears: [], chainStep: 0, caught: false },
   };
 }
 
@@ -221,7 +221,7 @@ export function step(state: GameState, dtMs: number, commands: Command[]): GameS
   }
 
   // Clear transient FX from previous frame
-  let s: GameState = { ...state, fx: { clears: [], chainStep: 0, lastFoul: undefined } };
+  let s: GameState = { ...state, fx: { clears: [], chainStep: 0, lastFoul: undefined, caught: false } };
 
   // Apply commands first
   for (const cmd of commands) {
@@ -243,15 +243,15 @@ export function step(state: GameState, dtMs: number, commands: Command[]): GameS
   const nextConveyor: FallingTile[] = [];
   let drops = s.dropsRemaining;
   let paddle = s.paddle;
-  // Preserve any foul set by a command (e.g. fullColumn) — conveyor may add 'missed' on top
   let foul: GameState['fx']['lastFoul'] = s.fx.lastFoul;
+  let caught = false;
 
   for (const ft of s.conveyor) {
     const newProgress = ft.progress + progressDelta;
     if (newProgress >= 1) {
-      // Tile reached the lip
       if (ft.lane === s.paddleLane && canCatch(paddle, s.config)) {
         paddle = catchTile(paddle, ft.tile);
+        caught = true;
       } else {
         drops--;
         foul = 'missed';
@@ -276,7 +276,7 @@ export function step(state: GameState, dtMs: number, commands: Command[]): GameS
     dropsRemaining: Math.max(0, drops),
     spawnTimer,
     waveProgress,
-    fx: { ...s.fx, lastFoul: foul },
+    fx: { ...s.fx, lastFoul: foul, caught },
     phase: gameOver ? 'gameOver' : s.phase,
   };
 

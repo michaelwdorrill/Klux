@@ -71,6 +71,7 @@ export interface FxState {
   clears: ClearEvent[];
   chainStep: number;
   lastFoul?: 'fullColumn' | 'missed';
+  caught: boolean;  // true if at least one tile was caught this step
 }
 
 export interface GameState {

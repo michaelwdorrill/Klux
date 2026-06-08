@@ -116,12 +116,13 @@ src/
 - [x] **Phase 3** — Render static game state
 - [x] **Phase 4** — Keyboard adapter + playable desktop game
 - [x] **Phase 5** — Conveyor timing, waves, game-over
-- [ ] **Phase 6** — Touch + on-screen controls
-- [ ] **Phase 7** — Audio (synthesized SFX)
+- [x] **Phase 6** — Touch + on-screen controls
+- [x] **Phase 7** — Audio (synthesized SFX)
 - [ ] **Phase 8** — Polish FX (particles, screen shake, colorblind cues)
 - [ ] **Phase 9** — UI screens + persistence
 - [ ] **Phase 10** — PWA + GitHub Pages deploy
 - [ ] **Phase 11** — Perspective/pseudo-3D renderer (render-only swap; see §16 of SPEC.md)
+- [ ] **Phase 12** — Global leaderboard (Cloudflare Worker + D1; see §16 of SPEC.md)
 
 ## Tech Stack
 
