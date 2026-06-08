@@ -1,0 +1,26 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "parserOptions": {
+    "ecmaVersion": 2020,
+    "sourceType": "module"
+  },
+  "rules": {
+    "no-restricted-imports": ["error", {
+      "patterns": [{
+        "group": ["*/render/*", "*/input/*", "*/audio/*", "*/ui/*", "*/persistence/*"],
+        "message": "core/ must not import from render, input, audio, ui, or persistence"
+      }]
+    }]
+  },
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2020": true
+  }
+}
