@@ -3,6 +3,10 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   base: '/',
+  define: {
+    // Injected at build time so the deployed page always shows when it was built.
+    __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
+  },
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',

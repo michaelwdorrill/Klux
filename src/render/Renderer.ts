@@ -98,6 +98,18 @@ export class Renderer {
     }
 
     this.effects.endFrame();
+    this.drawBuildLabel(w, h);
+  }
+
+  private drawBuildLabel(_w: number, h: number): void {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`build ${__BUILD_DATE__}`, 6, h - 4);
+    ctx.restore();
   }
 
   /** Expose Effects so main.ts can fire the easter egg. */
