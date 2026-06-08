@@ -1,7 +1,8 @@
-import type { GameState, GoalType } from '../core/types';
+import type { GameState, GoalType, Wave } from '../core/types';
 import { computeLayout, type Layout } from './layout';
 import { drawTile, drawGhostTile, FILL_COLORS } from './tiles';
 import { Effects } from './effects';
+import { getWave } from '../core/waves';
 
 const BG = '#1a1a2e';
 const WELL_BG = '#16213e';
@@ -155,9 +156,17 @@ export class Renderer {
         ctx.fillText(`+${bonus} drop bonus`, cx, cy + subSize * 0.7);
       }
 
-      ctx.fillStyle = 'rgba(200,200,220,0.6)';
+      const next = getWave(state.wave.index + 1);
+      ctx.fillStyle = 'rgba(200,200,220,0.55)';
       ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('Enter to continue · auto-advancing…', cx, cy + subSize * 2.2);
+      ctx.fillText(`NEXT — WAVE ${next.index + 1}`, cx, cy + subSize * 2.0);
+      ctx.fillStyle = '#9bd1ff';
+      ctx.font = `bold ${subSize * 1.05}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText(nextGoalText(next), cx, cy + subSize * 3.1);
+
+      ctx.fillStyle = 'rgba(200,200,220,0.5)';
+      ctx.font = `${subSize * 0.75}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('Enter to continue · auto-advancing…', cx, cy + subSize * 4.3);
     }
 
     if (state.phase === 'gameOver') {
@@ -456,6 +465,19 @@ function goalText(state: GameState): string {
     SURVIVE: `Tiles ${waveProgress} / ${wave.target}`,
   };
   return labels[wave.goal];
+}
+
+function nextGoalText(wave: Wave): string {
+  const n = wave.target;
+  const s = (count: number, singular: string, plural: string) =>
+    count === 1 ? singular : plural;
+  switch (wave.goal) {
+    case 'SCORE': return `Score ${n.toLocaleString()}`;
+    case 'KLUXES': return `Make ${n} ${s(n, 'KLUX', 'KLUXes')}`;
+    case 'HORIZONTALS': return `Make ${n} horizontal ${s(n, 'KLUX', 'KLUXes')}`;
+    case 'DIAGONALS': return `Make ${n} diagonal ${s(n, 'KLUX', 'KLUXes')}`;
+    case 'SURVIVE': return `Survive ${n} tiles`;
+  }
 }
 
 function drawDropIcons(
