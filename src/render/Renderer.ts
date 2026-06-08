@@ -131,21 +131,22 @@ export class Renderer {
     if (state.phase === 'title') {
       ctx.fillStyle = '#e0e0e0';
       ctx.font = `bold ${titleSize * 1.6}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('KLUX', cx, cy - titleSize * 1.6);
+      ctx.fillText('KLUX', cx, cy - titleSize * 1.4);
 
       ctx.fillStyle = 'rgba(200,200,220,0.8)';
       ctx.font = `${subSize}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('Choose your mode', cx, cy - subSize * 0.4);
+      ctx.fillText('Pick a mode to play', cx, cy - subSize * 0.2);
 
-      ctx.fillStyle = '#9bd1ff';
-      ctx.font = `bold ${subSize * 1.05}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('1 — CLASSIC', cx, cy + subSize * 0.9);
-      ctx.fillStyle = '#ffd166';
-      ctx.fillText('2 — ENDLESS', cx, cy + subSize * 2.1);
+      ctx.fillStyle = 'rgba(155,209,255,0.85)';
+      ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('CLASSIC — chase the wave goals', cx, cy + subSize * 1.0);
+      ctx.fillStyle = 'rgba(255,209,102,0.85)';
+      ctx.fillText('ENDLESS — survive as long as you can', cx, cy + subSize * 2.1);
 
-      ctx.fillStyle = 'rgba(140,140,160,0.6)';
-      ctx.font = `${subSize * 0.8}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('Arrows/WASD · Space = drop · P = pause · M = mute', cx, cy + subSize * 3.8);
+      ctx.fillStyle = 'rgba(140,140,160,0.55)';
+      ctx.font = `${subSize * 0.78}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('Tap a button below · keys 1 / 2 also work', cx, cy + subSize * 3.4);
+      ctx.fillText('Arrows / WASD · Space = drop · P = pause · M = mute', cx, cy + subSize * 4.3);
     }
 
     if (state.phase === 'paused') {
@@ -189,21 +190,19 @@ export class Renderer {
     if (state.phase === 'gameOver') {
       ctx.fillStyle = '#e63946';
       ctx.font = `bold ${titleSize}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('GAME OVER', cx, cy - subSize * 2.4);
+      ctx.fillText('GAME OVER', cx, cy - subSize * 2.2);
 
       ctx.fillStyle = '#e0e0e0';
       ctx.font = `${subSize}px 'Segoe UI', system-ui, sans-serif`;
       ctx.fillText(`Final score: ${state.score.toLocaleString()}`, cx, cy - subSize * 0.6);
 
-      ctx.fillStyle = '#9bd1ff';
-      ctx.font = `bold ${subSize}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('1 — CLASSIC', cx, cy + subSize * 0.9);
-      ctx.fillStyle = '#ffd166';
-      ctx.fillText('2 — ENDLESS', cx, cy + subSize * 2.1);
+      ctx.fillStyle = 'rgba(200,200,220,0.7)';
+      ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('Tap CLASSIC or ENDLESS to play again', cx, cy + subSize * 1.1);
 
-      ctx.fillStyle = 'rgba(200,200,220,0.5)';
-      ctx.font = `${subSize * 0.8}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('or Enter to restart same mode', cx, cy + subSize * 3.4);
+      ctx.fillStyle = 'rgba(140,140,160,0.5)';
+      ctx.font = `${subSize * 0.75}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('or press 1 / 2 · Enter restarts same mode', cx, cy + subSize * 2.4);
     }
   }
 

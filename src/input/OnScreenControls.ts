@@ -12,6 +12,13 @@ export class OnScreenControls implements InputAdapter {
   private gameControls: HTMLElement | null = null;
 
   isApplicable(): boolean {
+    // Always attach — the mode picker on title / game-over is the only way to
+    // choose a mode on touch devices, and a useful click target on desktop.
+    // Game-play buttons (drop/flip/pause) are still hidden on desktop in update().
+    return true;
+  }
+
+  private isTouchLike(): boolean {
     return navigator.maxTouchPoints > 0 || !matchMedia('(pointer: fine)').matches;
   }
 
@@ -32,8 +39,12 @@ export class OnScreenControls implements InputAdapter {
     if (!this.container) return;
     const playing = phase === 'playing' || phase === 'paused';
     const pickMode = phase === 'title' || phase === 'gameOver';
+    const showGameControls = playing && this.isTouchLike();
+    // Hide the whole bar on desktop during gameplay to free up canvas room.
+    const anyVisible = pickMode || (phase === 'waveClear') || showGameControls;
 
-    this.gameControls!.style.display = playing ? '' : 'none';
+    this.container.style.display = anyVisible ? '' : 'none';
+    this.gameControls!.style.display = showGameControls ? '' : 'none';
     this.modePicker!.style.display = pickMode ? '' : 'none';
     this.confirmBtn!.style.display = phase === 'waveClear' ? '' : 'none';
   }

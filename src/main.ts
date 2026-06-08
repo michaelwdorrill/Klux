@@ -1,5 +1,5 @@
 import { DEFAULT_CONFIG } from './config';
-import { startGame, step } from './core/game';
+import { startGame, step, speedTier } from './core/game';
 import { spawnIntervalMs } from './core/waves';
 import type { GameState } from './core/types';
 import { Renderer } from './render/Renderer';
@@ -59,7 +59,7 @@ const WAVE_CLEAR_AUTO_MS = 3000;
 let acc = 0;
 let last = performance.now();
 let waveClearEnteredAt: number | null = null;
-let lastWaveIndex = -1;
+let lastSpeedTier = -1;
 let lastPhase = state.phase;
 
 document.addEventListener('visibilitychange', () => {
@@ -90,14 +90,16 @@ function frame(now: number): void {
     acc -= FIXED_MS;
   }
 
-  // Ramp music tempo with the actual game tempo (spawn interval), so music
-  // tracks the speed ramp instead of marching ahead on raw wave count.
-  if (state.wave.index !== lastWaveIndex) {
+  // Music tempo follows the same speed tier the simulation uses for spawning:
+  //  - classic: wave index
+  //  - endless: floor(kluxCount / 10) — bumps quietly every 10 KLUXes
+  const tier = speedTier(state);
+  if (tier !== lastSpeedTier) {
     const { baseSpawnMs, minSpawnMs, spawnStepPerWave } = state.config;
-    const spawnMs = spawnIntervalMs(state.wave.index, baseSpawnMs, minSpawnMs, spawnStepPerWave);
+    const spawnMs = spawnIntervalMs(tier, baseSpawnMs, minSpawnMs, spawnStepPerWave);
     const factor = (baseSpawnMs - spawnMs) / (baseSpawnMs - minSpawnMs);
     audio.setSpeedFactor(factor);
-    lastWaveIndex = state.wave.index;
+    lastSpeedTier = tier;
   }
 
   // Play wave-clear jingle on transition

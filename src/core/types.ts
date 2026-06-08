@@ -94,4 +94,6 @@ export interface GameState {
   spawnTimer: number;   // ms until next spawn
   rng: RngState;
   fx: FxState;
+  /** Total KLUX lines made — drives the speed tier in endless mode. */
+  kluxCount: number;
 }
