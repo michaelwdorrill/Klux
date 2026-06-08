@@ -129,18 +129,23 @@ export class Renderer3D extends Renderer {
     }
 
     // ── Vanishing-point fog (reinforces depth) ─────────────────────────────
-    const fogH = (lipY - topY) * 0.45;
-    const fog = ctx.createLinearGradient(0, topY, 0, topY + fogH);
+    // The fog trapezoid must follow the lane boundaries at every depth level,
+    // otherwise it bleeds outside the lanes in the middle of the conveyor.
+    // At fraction fogFrac down the conveyor the scale is a linear interpolation
+    // of FAR_SCALE→1 (same formula used for lane trapezoids), so we use that
+    // scale for the fog-bottom edges.
+    const FOG_FRAC = 0.5;
+    const sFogBottom = FAR_SCALE + (1 - FAR_SCALE) * FOG_FRAC;
+    const fogBottomY = topY + FOG_FRAC * (lipY - topY);
+    const fog = ctx.createLinearGradient(0, topY, 0, fogBottomY);
     fog.addColorStop(0,   FOG_COLOR);
     fog.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = fog;
-    const fogL = projX(vpX, pfX, FAR_SCALE * 0.5);
-    const fogR = projX(vpX, pfX + pfW, FAR_SCALE * 0.5);
     ctx.beginPath();
-    ctx.moveTo(fogL, topY);
-    ctx.lineTo(fogR, topY);
-    ctx.lineTo(pfX + pfW, topY + fogH);
-    ctx.lineTo(pfX,       topY + fogH);
+    ctx.moveTo(projX(vpX, pfX,       FAR_SCALE),  topY);
+    ctx.lineTo(projX(vpX, pfX + pfW, FAR_SCALE),  topY);
+    ctx.lineTo(projX(vpX, pfX + pfW, sFogBottom), fogBottomY);
+    ctx.lineTo(projX(vpX, pfX,       sFogBottom), fogBottomY);
     ctx.closePath();
     ctx.fill();
 
