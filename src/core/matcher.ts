@@ -47,7 +47,7 @@ export function findKluxes(well: Well, minRun: number): KluxLine[] {
         }
 
         if (positions.length >= minRun) {
-          lines.push({ tiles: positions, orientation });
+          lines.push({ tiles: positions, orientation, color: origin.color });
         }
       }
     }

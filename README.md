@@ -118,7 +118,7 @@ src/
 - [x] **Phase 5** — Conveyor timing, waves, game-over
 - [x] **Phase 6** — Touch + on-screen controls
 - [x] **Phase 7** — Audio (synthesized SFX)
-- [ ] **Phase 8** — Polish FX (particles, screen shake, colorblind cues)
+- [x] **Phase 8** — Polish FX (particles, screen shake, score popups, foul flash)
 - [ ] **Phase 9** — UI screens + persistence
 - [ ] **Phase 10** — PWA + GitHub Pages deploy
 - [ ] **Phase 11** — Perspective/pseudo-3D renderer (render-only swap; see §16 of SPEC.md)

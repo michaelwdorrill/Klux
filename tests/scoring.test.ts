@@ -14,6 +14,7 @@ const scoring: ScoringConfig = {
 function hLine(len: number): KluxLine {
   return {
     orientation: 'horizontal',
+    color: 0,
     tiles: Array.from({ length: len }, (_, i) => ({ row: 0, col: i })),
   };
 }
@@ -21,6 +22,7 @@ function hLine(len: number): KluxLine {
 function dLine(len: number): KluxLine {
   return {
     orientation: 'diagonal',
+    color: 0,
     tiles: Array.from({ length: len }, (_, i) => ({ row: i, col: i })),
   };
 }
