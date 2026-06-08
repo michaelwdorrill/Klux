@@ -52,16 +52,6 @@ function projX(vpX: number, flatX: number, s: number): number {
   return vpX + (flatX - vpX) * s;
 }
 
-/**
- * Project a y-coordinate from the vanishing point (vpY) toward a near target.
- *
- * For tiles to travel in a straight line, both x and y must be driven by the
- * same s(p): x = vpX + Δx·s, y = vpY + Δy·s.
- * vpY = topY (top of conveyor = where all lanes converge).
- */
-function projY(vpY: number, nearY: number, s: number): number {
-  return vpY + (nearY - vpY) * s;
-}
 
 // ── Renderer3D ─────────────────────────────────────────────────────────────────
 
@@ -80,7 +70,6 @@ export class Renderer3D extends Renderer {
     const topY = conveyorOrigin.y;
     const lipY = topY + conveyorRows * cellSize;
     const vpX  = pfX + pfW / 2;
-    const nearTileTopY = lipY - cellSize; // tile top when p=1
 
     // ── Lane trapezoid backgrounds (far → near, so near overdraw far) ─────
     for (let col = 0; col < cols; col++) {
@@ -113,13 +102,12 @@ export class Renderer3D extends Renderer {
     }
 
     // ── Perspective horizontal depth grid lines ────────────────────────────
-    // Grid lines mark tile-row boundaries. They use projY so they align with
-    // the same perspective math as the tiles.
+    // The lane trapezoid uses LINEAR y (topY → lipY) with x-width given by
+    // perspScale(t). Grid lines must use the same y so they sit on the lane faces.
     for (let i = 1; i < conveyorRows; i++) {
-      const p = i / conveyorRows;
-      const s = perspScale(p);
-      // Bottom edge of the tile-row at this progress = same formula as tile bottom
-      const lineY = projY(topY, lipY, s);
+      const t = i / conveyorRows;
+      const s = perspScale(t);
+      const lineY = topY + t * (lipY - topY); // evenly spaced, matches lane geometry
       ctx.strokeStyle = DEPTH_LINE;
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -159,6 +147,11 @@ export class Renderer3D extends Renderer {
     ctx.stroke();
 
     // ── Falling tiles — painter's order: far first, near on top ───────────
+    // The lane boundary at y-fraction t uses scale perspScale(t).  For the
+    // tile to stay inside its lane we must use the SAME t for both x and y.
+    // Set t = p and derive y from the lane's linear formula (not projY).
+    //   tileBottomY = topY + p*(lipY-topY)   (t = p → lane scale = perspScale(p) ✓)
+    //   tx uses perspScale(p) for x → tile exactly fills its lane column.
     const sorted = [...state.conveyor].sort((a, b) => a.progress - b.progress);
 
     for (const ft of sorted) {
@@ -166,10 +159,11 @@ export class Renderer3D extends Renderer {
       const s = perspScale(p);
       const tileSize = cellSize * s;
 
+      const tileBottomY = topY + p * (lipY - topY);
+      const ty = tileBottomY - tileSize;
+
       const flatCX = pfX + (ft.lane + 0.5) * cellSize;
       const tx = projX(vpX, flatCX, s) - tileSize / 2;
-      // y projects from the same VP as x → straight-line paths down each lane
-      const ty = projY(topY, nearTileTopY, s);
 
       drawTile(ctx, tx, ty, tileSize, ft.tile.color);
     }
