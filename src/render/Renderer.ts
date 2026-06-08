@@ -1,6 +1,6 @@
 import type { GameState, GoalType } from '../core/types';
 import { computeLayout, type Layout } from './layout';
-import { drawTile, drawGhostTile } from './tiles';
+import { drawTile, drawGhostTile, FILL_COLORS } from './tiles';
 
 const BG = '#1a1a2e';
 const WELL_BG = '#16213e';
@@ -125,13 +125,22 @@ export class Renderer {
     if (state.phase === 'waveClear') {
       ctx.fillStyle = '#06d6a0';
       ctx.font = `bold ${titleSize}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('WAVE CLEAR!', cx, cy - subSize * 1.5);
+      ctx.fillText(`WAVE ${state.wave.index + 1} CLEAR!`, cx, cy - subSize * 2.2);
+
       ctx.fillStyle = '#e0e0e0';
       ctx.font = `${subSize}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText(`Score: ${state.score}`, cx, cy + subSize * 0.2);
-      ctx.fillStyle = 'rgba(200,200,220,0.7)';
-      ctx.font = `${subSize * 0.9}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('Press Enter for next wave', cx, cy + subSize * 1.8);
+      ctx.fillText(`Score: ${state.score}`, cx, cy - subSize * 0.6);
+
+      const bonus = state.dropsRemaining * state.config.scoring.waveClearPerDrop;
+      if (bonus > 0) {
+        ctx.fillStyle = '#f4a261';
+        ctx.font = `${subSize * 0.9}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.fillText(`+${bonus} drop bonus`, cx, cy + subSize * 0.7);
+      }
+
+      ctx.fillStyle = 'rgba(200,200,220,0.6)';
+      ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('Enter to continue · auto-advancing…', cx, cy + subSize * 2.2);
     }
 
     if (state.phase === 'gameOver') {
@@ -235,25 +244,34 @@ export class Renderer {
     ctx.fillStyle = PADDLE_ACTIVE;
     ctx.fillRect(activeX + 1, paddleOrigin.y + 2, cellSize - 2, cellSize - 4);
 
-    // Show only the TOP tile of the stack on the paddle bar — rest is in the stack panel
+    // Show the TOP tile of the stack on the paddle bar
     if (state.paddle.length > 0) {
       const top = state.paddle[state.paddle.length - 1];
       drawTile(ctx, activeX, paddleOrigin.y, cellSize, top.color);
 
-      // Stack depth badge on top-right corner of the tile
-      if (state.paddle.length > 1) {
-        const bx = activeX + cellSize * 0.62;
-        const by = paddleOrigin.y + cellSize * 0.04;
-        const br = cellSize * 0.2;
-        ctx.fillStyle = 'rgba(10,12,30,0.85)';
+      // Stack indicator: a row of color dots at the bottom of the active cell.
+      // Left = bottom of stack, right = top (next to drop, marked with white ring).
+      // This lets the player see the full stack without looking away.
+      const dotR = Math.max(4, cellSize * 0.09);
+      const dotGap = dotR * 0.7;
+      const dotCount = state.paddle.length;
+      const rowW = dotCount * dotR * 2 + (dotCount - 1) * dotGap;
+      let dotX = activeX + cellSize / 2 - rowW / 2 + dotR;
+      const dotY = paddleOrigin.y + cellSize - dotR - 4;
+
+      for (let i = 0; i < dotCount; i++) {
+        const isTop = i === dotCount - 1;
         ctx.beginPath();
-        ctx.arc(bx + br, by + br, br, 0, Math.PI * 2);
+        ctx.arc(dotX, dotY, dotR, 0, Math.PI * 2);
+        ctx.fillStyle = FILL_COLORS[state.paddle[i].color % FILL_COLORS.length];
         ctx.fill();
-        ctx.fillStyle = '#e0e0e0';
-        ctx.font = `bold ${cellSize * 0.25}px 'Segoe UI', system-ui, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${state.paddle.length}`, bx + br, by + br);
+        if (isTop) {
+          // White ring marks the tile that drops next
+          ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+        dotX += dotR * 2 + dotGap;
       }
     } else {
       ctx.save();

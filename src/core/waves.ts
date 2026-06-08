@@ -1,21 +1,21 @@
 import type { Wave, GoalType } from './types';
 
+// Each wave has a goal type and base target. Targets scale each cycle.
 const WAVE_SEQUENCE: Array<{ goal: GoalType; baseTarget: number }> = [
-  { goal: 'KLUXES', baseTarget: 3 },
-  { goal: 'SCORE', baseTarget: 5000 },
-  { goal: 'HORIZONTALS', baseTarget: 3 },
-  { goal: 'DIAGONALS', baseTarget: 2 },
-  { goal: 'SURVIVE', baseTarget: 20 },
-  { goal: 'KLUXES', baseTarget: 5 },
-  { goal: 'SCORE', baseTarget: 15000 },
-  { goal: 'DIAGONALS', baseTarget: 4 },
+  { goal: 'KLUXES',      baseTarget: 2  }, // wave 1 — learn the controls
+  { goal: 'SCORE',       baseTarget: 3000 },
+  { goal: 'HORIZONTALS', baseTarget: 2  },
+  { goal: 'KLUXES',      baseTarget: 4  },
+  { goal: 'SURVIVE',     baseTarget: 18 },
+  { goal: 'DIAGONALS',   baseTarget: 1  }, // diagonals first appear late wave 1 cycle
+  { goal: 'SCORE',       baseTarget: 8000 },
+  { goal: 'DIAGONALS',   baseTarget: 3  },
 ];
 
 export function getWave(index: number): Wave {
   const template = WAVE_SEQUENCE[index % WAVE_SEQUENCE.length];
   const tier = Math.floor(index / WAVE_SEQUENCE.length);
-  // Scale targets each full cycle through the sequence
-  const scale = 1 + tier * 0.5;
+  const scale = 1 + tier * 0.6;
   return {
     index,
     goal: template.goal,
@@ -23,7 +23,12 @@ export function getWave(index: number): Wave {
   };
 }
 
-export function spawnIntervalMs(waveIndex: number, baseSpawnMs: number, minSpawnMs: number, spawnStepPerWave: number): number {
+export function spawnIntervalMs(
+  waveIndex: number,
+  baseSpawnMs: number,
+  minSpawnMs: number,
+  spawnStepPerWave: number
+): number {
   return Math.max(minSpawnMs, baseSpawnMs - waveIndex * spawnStepPerWave);
 }
 

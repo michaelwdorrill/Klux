@@ -4,6 +4,7 @@ import type { GameState } from './core/types';
 import { Renderer } from './render/Renderer';
 import { InputManager } from './input/InputManager';
 import { KeyboardAdapter } from './input/KeyboardAdapter';
+import type { Command } from './core/commands';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const renderer = new Renderer(canvas);
@@ -29,28 +30,39 @@ window.addEventListener('keydown', (e) => {
 });
 
 const FIXED_MS = 1000 / 60;
+const WAVE_CLEAR_AUTO_MS = 3000; // auto-advance wave clear after this long
+
 let acc = 0;
 let last = performance.now();
-let paused = false;
+let waveClearEnteredAt: number | null = null;
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && state.phase === 'playing') {
     state = { ...state, phase: 'paused' };
   }
   if (!document.hidden) {
-    last = performance.now(); // reset timer to avoid spiral-of-death after tab-away
-    paused = false;
+    last = performance.now();
   }
 });
 
 function frame(now: number): void {
-  if (!paused) {
-    acc += Math.min(now - last, 250);
-  }
+  acc += Math.min(now - last, 250);
   last = now;
 
+  // Auto-advance the wave-clear screen after WAVE_CLEAR_AUTO_MS
+  const extraCmds: Command[] = [];
+  if (state.phase === 'waveClear') {
+    if (waveClearEnteredAt === null) waveClearEnteredAt = now;
+    if (now - waveClearEnteredAt >= WAVE_CLEAR_AUTO_MS) {
+      extraCmds.push({ type: 'CONFIRM' });
+      waveClearEnteredAt = null;
+    }
+  } else {
+    waveClearEnteredAt = null;
+  }
+
   while (acc >= FIXED_MS) {
-    const commands = input.drain();
+    const commands = [...input.drain(), ...extraCmds.splice(0)];
     state = step(state, FIXED_MS, commands);
     acc -= FIXED_MS;
   }

@@ -1,5 +1,5 @@
 // Hue + shape per color index — never rely on hue alone (colorblind-friendly)
-const FILL_COLORS = ['#e63946', '#4361ee', '#06d6a0', '#f4a261', '#9b5de5'];
+export const FILL_COLORS = ['#e63946', '#4361ee', '#06d6a0', '#f4a261', '#9b5de5'];
 const DARK_COLORS = ['#9b1d24', '#1e2f8f', '#048c69', '#c67932', '#6a3fa0'];
 
 type Shape = 'circle' | 'square' | 'triangle' | 'diamond' | 'cross';

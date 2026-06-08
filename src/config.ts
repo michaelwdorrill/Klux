@@ -8,12 +8,17 @@ export const DEFAULT_CONFIG: GameConfig = {
   maxDrops: 3,
   minRun: 3,
 
-  baseTravelMs: 3000,
-  minTravelMs: 800,
-  rampPerTile: 20,
-  baseSpawnMs: 1800,
-  minSpawnMs: 600,
-  spawnStepPerWave: 80,
+  // Tile travel time from top of conveyor to paddle lip.
+  // Decreases within a wave as more tiles are fed (rampPerTile), and between
+  // waves via shorter spawn intervals (spawnStepPerWave).
+  baseTravelMs: 3500,   // generous on wave 1 — gives time to learn the controls
+  minTravelMs: 750,     // maximum speed reached deep into late waves
+  rampPerTile: 12,      // ms reduction per tile fed this wave (gentle within-wave ramp)
+
+  // Time between tile spawns — decreases each wave
+  baseSpawnMs: 2200,    // one tile every 2.2s on wave 1
+  minSpawnMs: 550,      // floor: one tile every 0.55s on late waves
+  spawnStepPerWave: 110,// ms reduction per wave (wave 5 ≈ 1650ms, wave 10 ≈ 1100ms)
 
   scoring: {
     horizontal: 1000,
