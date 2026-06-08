@@ -227,6 +227,13 @@ export function step(state: GameState, dtMs: number, commands: Command[]): GameS
     if (s.phase !== 'playing') return s;
   }
 
+  // Spawn before advancing so the new tile is included in this frame's conveyor pass
+  let spawnTimer = s.spawnTimer - dtMs;
+  if (spawnTimer <= 0) {
+    s = spawnTile({ ...s, spawnTimer: 0 });
+    spawnTimer = s.spawnTimer;
+  }
+
   // Advance conveyor
   const travel = travelMs(s.tilesFedThisWave, s.config.baseTravelMs, s.config.minTravelMs, s.config.rampPerTile);
   const progressDelta = dtMs / travel;
@@ -250,13 +257,6 @@ export function step(state: GameState, dtMs: number, commands: Command[]): GameS
     } else {
       nextConveyor.push({ ...ft, progress: newProgress });
     }
-  }
-
-  // Spawn new tile?
-  let spawnTimer = s.spawnTimer - dtMs;
-  if (spawnTimer <= 0) {
-    s = spawnTile({ ...s, spawnTimer: 0 });
-    spawnTimer = s.spawnTimer;
   }
 
   // SURVIVE goal: count tiles fed

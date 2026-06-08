@@ -17,6 +17,7 @@ export class Renderer {
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
   private layout: Layout | null = null;
+  debugMode = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -57,6 +58,34 @@ export class Renderer {
     if (state.phase !== 'playing') {
       this.drawOverlay(state, w, h, layout.cellSize);
     }
+
+    if (this.debugMode) {
+      this.drawDebug(state, w);
+    }
+  }
+
+  private drawDebug(state: GameState, w: number): void {
+    const { ctx } = this;
+    const lines = [
+      `phase: ${state.phase}`,
+      `conveyor: ${state.conveyor.length} tiles`,
+      `spawn in: ${(state.spawnTimer / 1000).toFixed(2)}s`,
+      `paddle: [${state.paddle.map((t) => t.color).join(',')}] lane ${state.paddleLane}`,
+      `drops: ${state.dropsRemaining}`,
+      `wave: ${state.wave.index + 1}  goal: ${state.wave.goal} ${state.waveProgress}/${state.wave.target}`,
+      `tiles fed: ${state.tilesFedThisWave}`,
+    ];
+    const lh = 16;
+    const pad = 6;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(w - 260, 0, 260, lines.length * lh + pad * 2);
+    ctx.fillStyle = '#00ff88';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    lines.forEach((l, i) => ctx.fillText(l, w - 254, pad + i * lh));
+    ctx.restore();
   }
 
   drawOverlay(state: GameState, w: number, h: number, cellSize: number): void {
