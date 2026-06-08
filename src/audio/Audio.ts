@@ -180,8 +180,8 @@ export class Audio {
     const g = this.musicGain.gain;
     g.cancelScheduledValues(t);
     g.setValueAtTime(g.value, t);
-    g.linearRampToValueAtTime(MUSIC_VOLUME * 0.25, t + 0.08);
-    g.setValueAtTime(MUSIC_VOLUME * 0.25, t + durationS - 0.4);
+    g.linearRampToValueAtTime(MUSIC_VOLUME * 0.75, t + 0.08);
+    g.setValueAtTime(MUSIC_VOLUME * 0.75, t + durationS - 0.4);
     g.linearRampToValueAtTime(MUSIC_VOLUME, t + durationS);
   }
 
