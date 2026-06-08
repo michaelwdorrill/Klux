@@ -23,6 +23,11 @@ window.addEventListener('orientationchange', applyCanvasSize);
 // Start on the title screen — CONFIRM transitions to 'playing'
 let state: GameState = { ...startGame(DEFAULT_CONFIG), phase: 'title' };
 
+// Backtick toggles debug overlay
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Backquote') renderer.debugMode = !renderer.debugMode;
+});
+
 const FIXED_MS = 1000 / 60;
 let acc = 0;
 let last = performance.now();
