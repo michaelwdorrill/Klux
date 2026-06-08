@@ -20,8 +20,10 @@ export const DEFAULT_CONFIG: GameConfig = {
   minSpawnMs: 700,      // floor: about one tile every 0.7s on late waves
   spawnStepPerWave: 80, // gentler — wave 5 ≈ 1800ms, wave 10 ≈ 1400ms, wave 20 ≈ 700ms
 
-  wildChance:   0.01, // 1-in-100 tile is a wild (matches any color)
-  doubleChance: 0.04, // 1-in-25 tile doubles the score of any KLUX it's in
+  wildChance:     0.01,  // 1-in-100: matches any color
+  doubleChance:   0.04,  // 1-in-25:  doubles score of any KLUX it's in
+  lockedChance:   0.02,  // 1-in-50:  blocks runs; unlocked by adjacent KLUX
+  negativeChance: 0.025, // 1-in-40:  subtracts score of any KLUX it's in
 
   // Klax arcade manual values: [3-tile, 4-tile, 5-tile]
   scoring: {

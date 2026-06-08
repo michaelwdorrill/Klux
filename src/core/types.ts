@@ -1,5 +1,5 @@
 export type Color = number; // 0..colorCount-1
-export type TileType = 'normal' | 'wild' | 'double';
+export type TileType = 'normal' | 'wild' | 'double' | 'locked' | 'negative';
 
 /**
  * Per-orientation score tables indexed by run length:
@@ -29,8 +29,10 @@ export interface GameConfig {
   spawnStepPerWave: number;
 
   scoring: ScoringConfig;
-  wildChance:   number; // probability a spawned tile is wild   (e.g. 0.01)
-  doubleChance: number; // probability a spawned tile is double (e.g. 0.04)
+  wildChance:    number; // probability a spawned tile is wild     (e.g. 0.01)
+  doubleChance:  number; // probability a spawned tile is double   (e.g. 0.04)
+  lockedChance:  number; // probability a spawned tile is locked   (e.g. 0.02)
+  negativeChance:number; // probability a spawned tile is negative (e.g. 0.025)
   seed?: number;
 }
 
@@ -65,7 +67,8 @@ export interface KluxLine {
   tiles: Array<{ row: number; col: number }>;
   orientation: 'horizontal' | 'vertical' | 'diagonal';
   color: Color;
-  doubled: boolean; // true if any tile in the line is type 'double'
+  doubled:  boolean; // true if any tile in the line is type 'double'
+  negative: boolean; // true if any tile in the line is type 'negative'
 }
 
 export interface ClearEvent {
