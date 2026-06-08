@@ -179,6 +179,8 @@ function startWave(state: GameState, waveIndex: number): GameState {
   return {
     ...state,
     phase: 'playing',
+    well: createWell(state.config),  // clear the board between waves
+    paddle: [],                       // clear the paddle stack too
     wave,
     waveProgress: 0,
     tilesFedThisWave: 0,

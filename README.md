@@ -121,6 +121,7 @@ src/
 - [ ] **Phase 8** — Polish FX (particles, screen shake, colorblind cues)
 - [ ] **Phase 9** — UI screens + persistence
 - [ ] **Phase 10** — PWA + GitHub Pages deploy
+- [ ] **Phase 11** — Perspective/pseudo-3D renderer (render-only swap; see §16 of SPEC.md)
 
 ## Tech Stack
 
