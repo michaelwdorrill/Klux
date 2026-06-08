@@ -44,6 +44,7 @@ window.addEventListener('pointerdown', unlockAudio);
 // Load background music — put your Suno export at public/audio/theme.mp3
 audio.loadMusic('./audio/theme.mp3');
 audio.loadSfxFiles();
+renderer.getEffects().loadOwen('./images/owen.png');
 
 // Backtick toggles debug overlay; M toggles mute
 window.addEventListener('keydown', (e) => {
@@ -99,8 +100,19 @@ function frame(now: number): void {
     audio.sfxWaveClear();
   }
 
-  // Consume per-frame SFX events
+  // Per-frame SFX (catch + foul). Klux/Wow handled per-clear below.
   audio.consume(state.fx);
+
+  // Per-clear: 1 in 20 KLUX moments triggers the Owen easter egg
+  for (const ev of state.fx.clears) {
+    if (Math.random() < 1 / 20) {
+      audio.playWow();
+      renderer.getEffects().triggerOwen();
+    } else {
+      audio.playKlux(ev.chainStep, ev.lines.length);
+    }
+  }
+
   lastPhase = state.phase;
 
   onScreenControls.update(state.phase);

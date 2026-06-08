@@ -52,6 +52,8 @@ export interface Wave {
 
 export type Phase = 'title' | 'playing' | 'waveClear' | 'paused' | 'gameOver';
 
+export type GameMode = 'classic' | 'endless';
+
 export interface KluxLine {
   tiles: Array<{ row: number; col: number }>;
   orientation: 'horizontal' | 'vertical' | 'diagonal';
@@ -78,6 +80,7 @@ export interface FxState {
 export interface GameState {
   config: GameConfig;
   phase: Phase;
+  mode: GameMode;
   well: Well;
   paddle: Tile[];       // index 0 = bottom, last = top
   paddleLane: number;

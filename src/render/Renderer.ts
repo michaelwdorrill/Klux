@@ -55,6 +55,7 @@ export class Renderer {
     const dtMs = this.lastFrameMs === 0 ? 16 : Math.min(64, now - this.lastFrameMs);
     this.lastFrameMs = now;
     this.effects.tick(dtMs, state.fx, layout, state.phase);
+    this.effects.beginFrame();
 
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, w, h);
@@ -71,7 +72,10 @@ export class Renderer {
 
     // HUD + popups (steady)
     this.drawHud(state, layout, w, h);
-    this.effects.drawOverlay(ctx, w, h);
+
+    const wellCenterX = layout.wellOrigin.x + (layout.cellSize * layout.cols) / 2;
+    const wellCenterY = layout.wellOrigin.y + (layout.cellSize * layout.rows) / 2;
+    this.effects.drawOverlay(ctx, w, h, layout.cellSize * layout.cols, wellCenterX, wellCenterY);
 
     if (state.phase !== 'playing') {
       this.drawOverlay(state, w, h, layout.cellSize);
@@ -80,7 +84,12 @@ export class Renderer {
     if (this.debugMode) {
       this.drawDebug(state, w);
     }
+
+    this.effects.endFrame();
   }
+
+  /** Expose Effects so main.ts can fire the easter egg. */
+  getEffects(): Effects { return this.effects; }
 
   private drawDebug(state: GameState, w: number): void {
     const { ctx } = this;
@@ -122,13 +131,21 @@ export class Renderer {
     if (state.phase === 'title') {
       ctx.fillStyle = '#e0e0e0';
       ctx.font = `bold ${titleSize * 1.6}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('KLUX', cx, cy - titleSize * 1.2);
-      ctx.font = `${subSize}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('KLUX', cx, cy - titleSize * 1.6);
+
       ctx.fillStyle = 'rgba(200,200,220,0.8)';
-      ctx.fillText('Press Enter to play', cx, cy);
+      ctx.font = `${subSize}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('Choose your mode', cx, cy - subSize * 0.4);
+
+      ctx.fillStyle = '#9bd1ff';
+      ctx.font = `bold ${subSize * 1.05}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('1 — CLASSIC', cx, cy + subSize * 0.9);
+      ctx.fillStyle = '#ffd166';
+      ctx.fillText('2 — ENDLESS', cx, cy + subSize * 2.1);
+
       ctx.fillStyle = 'rgba(140,140,160,0.6)';
-      ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('Arrow keys / WASD  ·  Space = drop  ·  P = pause  ·  M = mute', cx, cy + subSize * 1.8);
+      ctx.font = `${subSize * 0.8}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('Arrows/WASD · Space = drop · P = pause · M = mute', cx, cy + subSize * 3.8);
     }
 
     if (state.phase === 'paused') {
@@ -172,13 +189,21 @@ export class Renderer {
     if (state.phase === 'gameOver') {
       ctx.fillStyle = '#e63946';
       ctx.font = `bold ${titleSize}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('GAME OVER', cx, cy - subSize * 1.5);
+      ctx.fillText('GAME OVER', cx, cy - subSize * 2.4);
+
       ctx.fillStyle = '#e0e0e0';
       ctx.font = `${subSize}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText(`Final score: ${state.score}`, cx, cy + subSize * 0.2);
-      ctx.fillStyle = 'rgba(200,200,220,0.7)';
-      ctx.font = `${subSize * 0.9}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('Press Enter to play again', cx, cy + subSize * 1.8);
+      ctx.fillText(`Final score: ${state.score.toLocaleString()}`, cx, cy - subSize * 0.6);
+
+      ctx.fillStyle = '#9bd1ff';
+      ctx.font = `bold ${subSize}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('1 — CLASSIC', cx, cy + subSize * 0.9);
+      ctx.fillStyle = '#ffd166';
+      ctx.fillText('2 — ENDLESS', cx, cy + subSize * 2.1);
+
+      ctx.fillStyle = 'rgba(200,200,220,0.5)';
+      ctx.font = `${subSize * 0.8}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('or Enter to restart same mode', cx, cy + subSize * 3.4);
     }
   }
 
@@ -186,24 +211,31 @@ export class Renderer {
     const { ctx } = this;
     const { cellSize, cols, rows, wellOrigin } = layout;
 
+    // Cells (background grid only — tiles drawn in a separate pass so they
+    // can animate without leaving gaps in the grid)
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const x = wellOrigin.x + col * cellSize;
-        const y = wellOrigin.y + (rows - 1 - row) * cellSize; // row 0 = bottom
-
+        const y = wellOrigin.y + (rows - 1 - row) * cellSize;
         ctx.fillStyle = WELL_BG;
         ctx.beginPath();
         ctx.roundRect(x + 1, y + 1, cellSize - 2, cellSize - 2, 3);
         ctx.fill();
-
         ctx.strokeStyle = WELL_LINE;
         ctx.lineWidth = 1;
         ctx.stroke();
+      }
+    }
 
+    // Tiles — animated via the Effects tween (drop-down on chain/clear)
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
         const tile = state.well[row][col];
-        if (tile !== null) {
-          drawTile(ctx, x, y, cellSize, tile.color);
-        }
+        if (tile === null) continue;
+        const targetX = wellOrigin.x + col * cellSize;
+        const targetY = wellOrigin.y + (rows - 1 - row) * cellSize;
+        const { x, y } = this.effects.getTileDrawPosition(tile.id, targetX, targetY);
+        drawTile(ctx, x, y, cellSize, tile.color);
       }
     }
 
@@ -369,7 +401,7 @@ export class Renderer {
 
       ctx.fillStyle = TEXT_DIM;
       ctx.font = `${fontSize - 1}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText(goalText(state), pad, hudY + hudH * 0.72);
+      ctx.fillText(hudGoalText(state), pad, hudY + hudH * 0.72);
 
       drawDropIcons(ctx, state.dropsRemaining, state.config.maxDrops, w - pad, hudY + hudH * 0.5, fontSize * 1.2, 'right');
     } else {
@@ -394,7 +426,7 @@ export class Renderer {
 
       ctx.fillStyle = TEXT_DIM;
       ctx.font = `${fontSize - 1}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('WAVE', cx, y);
+      ctx.fillText(state.mode === 'endless' ? 'WAVES' : 'WAVE', cx, y);
       y += fontSize + 2;
 
       ctx.fillStyle = TEXT_PRIMARY;
@@ -404,13 +436,13 @@ export class Renderer {
 
       ctx.fillStyle = TEXT_DIM;
       ctx.font = `${fontSize - 1}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('GOAL', cx, y);
+      ctx.fillText(state.mode === 'endless' ? 'MODE' : 'GOAL', cx, y);
       y += fontSize + 4;
 
       ctx.fillStyle = TEXT_PRIMARY;
       ctx.font = `${fontSize}px 'Segoe UI', system-ui, sans-serif`;
       ctx.textAlign = 'center';
-      const gt = goalText(state);
+      const gt = hudGoalText(state);
       // Wrap if long
       const words = gt.split(' ');
       let line = '';
@@ -465,6 +497,10 @@ function goalText(state: GameState): string {
     SURVIVE: `Tiles ${waveProgress} / ${wave.target}`,
   };
   return labels[wave.goal];
+}
+
+function hudGoalText(state: GameState): string {
+  return state.mode === 'endless' ? 'ENDLESS' : goalText(state);
 }
 
 function nextGoalText(wave: Wave): string {

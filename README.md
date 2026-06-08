@@ -31,7 +31,11 @@ A Klax-inspired tile matching game — playable in any browser, installable as a
 
 Tiles fall down a conveyor toward your paddle. Catch them, then drop them into the 5×5 well to form lines of 3 or more matching colors — **KLUXes**. Lines can be horizontal, vertical, or diagonal. Diagonals score big.
 
-Each wave has a goal (e.g. "Score 5000" or "Make 4 diagonal KLUXes"). Clear the goal to advance. You have 3 drops — miss tiles or overfill columns and you lose one. Lose all 3 and it's game over.
+Each wave has a goal on the arcade-faithful 5-cycle: **KLUX → DIAGONAL → SURVIVE → POINTS → HORIZONTAL**, with targets scaling each cycle. Clear the goal to advance. You have 3 drops — miss tiles or overfill columns and you lose one. Lose all 3 and it's game over.
+
+**Two modes:**
+- **Classic** — pause between waves, see your next goal, auto-advance
+- **Endless** — no breaks, waves and tempo keep escalating until you die
 
 **Scoring:**
 - Horizontal / Vertical KLUX (3 tiles): 1,000 pts

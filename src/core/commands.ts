@@ -6,4 +6,6 @@ export type Command =
   | { type: 'DROP' }
   | { type: 'FLIP' }
   | { type: 'PAUSE_TOGGLE' }
-  | { type: 'CONFIRM' };
+  | { type: 'CONFIRM' }
+  | { type: 'START_CLASSIC' }
+  | { type: 'START_ENDLESS' };
