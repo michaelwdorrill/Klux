@@ -1,11 +1,14 @@
 export type Color = number; // 0..colorCount-1
 
+/**
+ * Per-orientation score tables indexed by run length:
+ *   index 0 → 3 tiles, index 1 → 4 tiles, index 2 → 5 tiles
+ * Matches original Klax arcade manual values.
+ */
 export interface ScoringConfig {
-  horizontal: number;
-  vertical: number;
-  diagonal: number;
-  extraTile: number;
-  bigKluxBonus: number;
+  vertical:         [number, number, number]; // 50 / 1 000 / 1 500
+  horizontal:       [number, number, number]; // 100 / 500 / 1 000
+  diagonal:         [number, number, number]; // 500 / 1 000 / 1 500
   waveClearPerDrop: number;
 }
 

@@ -108,7 +108,7 @@ export class Renderer {
     ctx.font = '10px monospace';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(`build ${__BUILD_DATE__}`, 6, h - 4);
+    ctx.fillText(`build ${__BUILD_SHA__}`, 6, h - 4);
     ctx.restore();
   }
 
