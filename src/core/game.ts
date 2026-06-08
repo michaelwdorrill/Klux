@@ -23,11 +23,14 @@ export function speedTier(state: GameState): number {
 function spawnTile(state: GameState): GameState {
   const { config, rng } = state;
 
-  // Determine tile type: wild > double > normal (roll in priority order)
+  // Roll for special type in priority order (rarest first)
   const roll = Math.random();
+  let cumulative = 0;
   const tileType: Tile['type'] =
-    roll < config.wildChance   ? 'wild'   :
-    roll < config.wildChance + config.doubleChance ? 'double' :
+    roll < (cumulative += config.wildChance)    ? 'wild'     :
+    roll < (cumulative += config.lockedChance)  ? 'locked'   :
+    roll < (cumulative += config.doubleChance)  ? 'double'   :
+    roll < (cumulative += config.negativeChance)? 'negative' :
     'normal';
 
   const tile = newTile(nextInt(rng, 0, config.colorCount), tileType);
@@ -77,11 +80,12 @@ function resolveMatches(state: GameState): GameState {
     else if (goal === 'DIAGONALS') progress += lines.filter((l) => l.orientation === 'diagonal').length;
     else if (goal === 'SCORE') progress = current.score + points;
 
+    const newScore = Math.max(0, current.score + points);
     current = {
       ...current,
       well: clearCells(current.well, positions),
-      score: current.score + points,
-      waveProgress: goal === 'SCORE' ? current.score + points : progress,
+      score: newScore,
+      waveProgress: goal === 'SCORE' ? newScore : progress,
       kluxCount: current.kluxCount + lines.length,
     };
   }

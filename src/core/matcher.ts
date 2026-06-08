@@ -16,8 +16,10 @@ const DIRECTIONS: Direction[] = [
 /**
  * Two cells are "run-compatible" if either is wild or they share a color.
  * runColor === -1 means "not yet determined" (run started with a wild).
+ * Locked tiles are never compatible — they break every run.
  */
 function matches(cell: NonNullable<Cell>, runColor: number): boolean {
+  if (cell.type === 'locked') return false;
   return cell.type === 'wild' || runColor === -1 || cell.color === runColor;
 }
 
@@ -33,14 +35,16 @@ export function findKluxes(well: Well, minRun: number): KluxLine[] {
         const origin = well[startRow][startCol];
         if (origin === null) continue;
 
+        // Locked tiles never start or continue a run.
+        if (origin.type === 'locked') continue;
+
         // Skip if this position is a continuation of a longer run.
         // Wild tiles: only skip if the previous cell also matches the run.
         const prevRow = startRow - dr;
         const prevCol = startCol - dc;
         if (prevRow >= 0 && prevRow < rows && prevCol >= 0 && prevCol < cols) {
           const prev = well[prevRow][prevCol];
-          if (prev !== null) {
-            // prev and origin are run-compatible if either is wild or same color
+          if (prev !== null && prev.type !== 'locked') {
             const compatible =
               prev.type === 'wild' ||
               origin.type === 'wild' ||
@@ -70,11 +74,10 @@ export function findKluxes(well: Well, minRun: number): KluxLine[] {
         }
 
         if (positions.length >= minRun) {
-          const doubled = positions.some(
-            p => well[p.row][p.col]!.type === 'double',
-          );
-          const lineColor = runColor === -1 ? 0 : runColor; // all-wild → color 0
-          lines.push({ tiles: positions, orientation, color: lineColor, doubled });
+          const doubled  = positions.some(p => well[p.row][p.col]!.type === 'double');
+          const negative = positions.some(p => well[p.row][p.col]!.type === 'negative');
+          const lineColor = runColor === -1 ? 0 : runColor;
+          lines.push({ tiles: positions, orientation, color: lineColor, doubled, negative });
         }
       }
     }

@@ -5,9 +5,10 @@ function linePoints(line: KluxLine, scoring: ScoringConfig): number {
     line.orientation === 'vertical'   ? scoring.vertical   :
     line.orientation === 'diagonal'   ? scoring.diagonal   :
                                         scoring.horizontal;
-  const idx = Math.min(2, line.tiles.length - 3);
+  const idx  = Math.min(2, line.tiles.length - 3);
   const base = table[idx];
-  return line.doubled ? base * 2 : base;
+  const pts  = line.doubled ? base * 2 : base;
+  return line.negative ? -pts : pts;
 }
 
 export function scoreLines(

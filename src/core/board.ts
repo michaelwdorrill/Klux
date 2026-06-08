@@ -48,12 +48,37 @@ export function applyGravity(well: Well): Well {
   return next;
 }
 
-/** Remove all cells at the given positions and apply gravity. */
+/**
+ * Remove cleared positions, unlock any locked tiles orthogonally adjacent
+ * to the cleared set (converting them to 'normal'), then apply gravity.
+ */
 export function clearCells(well: Well, positions: Array<{ row: number; col: number }>): Well {
-  const next = well.map((row) => [...row]);
+  const rows = well.length;
+  const cols = well[0].length;
+  const cleared = new Set(positions.map(p => `${p.row},${p.col}`));
+
+  const next = well.map(row => [...row]);
+
+  // Remove cleared cells
   for (const { row, col } of positions) {
     next[row][col] = null;
   }
+
+  // Unlock locked tiles that are orthogonally adjacent to a cleared position
+  const ORTHO = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  for (const { row, col } of positions) {
+    for (const [dr, dc] of ORTHO) {
+      const nr = row + dr;
+      const nc = col + dc;
+      if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+      if (cleared.has(`${nr},${nc}`)) continue; // also being cleared
+      const tile = next[nr][nc];
+      if (tile?.type === 'locked') {
+        next[nr][nc] = { ...tile, type: 'normal' };
+      }
+    }
+  }
+
   return applyGravity(next);
 }
 
