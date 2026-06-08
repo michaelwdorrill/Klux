@@ -1,5 +1,5 @@
 import { DEFAULT_CONFIG } from './config';
-import { startGame, step, speedTier } from './core/game';
+import { startGame, step } from './core/game';
 import { spawnIntervalMs } from './core/waves';
 import type { GameState } from './core/types';
 import { Renderer } from './render/Renderer';
@@ -107,13 +107,19 @@ function frame(now: number): void {
     acc -= FIXED_MS;
   }
 
-  // Music tempo follows the same speed tier the simulation uses for spawning:
-  //  - classic: wave index
-  //  - endless: floor(kluxCount / 10) — bumps quietly every 10 KLUXes
-  const tier = speedTier(state);
+  // Music tempo bumps in discrete tiers — coarser than the spawn ramp so the
+  // track doesn't outpace the gameplay:
+  //  - classic: every full wave cycle (5 waves)
+  //  - endless: every 10 KLUXes
+  // The factor is derived from the spawn interval at the equivalent wave
+  // index for that tier, so music tops out at game-tempo max.
+  const tier = state.mode === 'endless'
+    ? Math.floor(state.kluxCount / 10)
+    : Math.floor(state.wave.index / 5);
   if (tier !== lastSpeedTier) {
     const { baseSpawnMs, minSpawnMs, spawnStepPerWave } = state.config;
-    const spawnMs = spawnIntervalMs(tier, baseSpawnMs, minSpawnMs, spawnStepPerWave);
+    const equivalentWave = state.mode === 'endless' ? tier : tier * 5;
+    const spawnMs = spawnIntervalMs(equivalentWave, baseSpawnMs, minSpawnMs, spawnStepPerWave);
     const factor = (baseSpawnMs - spawnMs) / (baseSpawnMs - minSpawnMs);
     audio.setSpeedFactor(factor);
     lastSpeedTier = tier;
