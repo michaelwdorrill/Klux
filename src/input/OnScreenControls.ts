@@ -10,8 +10,26 @@ export class OnScreenControls implements InputAdapter {
   private confirmBtn: HTMLButtonElement | null = null;
   private modePicker: HTMLElement | null = null;
   private gameControls: HTMLElement | null = null;
+  private muteBtn: HTMLButtonElement | null = null;
+  private onMuteToggle: (() => boolean) | null = null;
+
+  /** Caller wires a mute-toggle handler that returns the new muted state
+   *  (so the button can render the correct icon). */
+  setMuteHandler(fn: () => boolean): void { this.onMuteToggle = fn; }
+
+  /** Sync the mute icon to the current state (call when settings change externally). */
+  setMuteState(muted: boolean): void {
+    if (this.muteBtn) this.muteBtn.textContent = muted ? '🔇' : '🔊';
+  }
 
   isApplicable(): boolean {
+    // Always attach — the mode picker on title / game-over is the only way to
+    // choose a mode on touch devices, and a useful click target on desktop.
+    // Game-play buttons (drop/flip/pause) are still hidden on desktop in update().
+    return true;
+  }
+
+  private isTouchLike(): boolean {
     return navigator.maxTouchPoints > 0 || !matchMedia('(pointer: fine)').matches;
   }
 
@@ -23,7 +41,9 @@ export class OnScreenControls implements InputAdapter {
 
   detach(): void {
     this.container?.remove();
+    this.muteBtn?.remove();
     this.container = null;
+    this.muteBtn = null;
     this.emit = null;
   }
 
@@ -32,8 +52,12 @@ export class OnScreenControls implements InputAdapter {
     if (!this.container) return;
     const playing = phase === 'playing' || phase === 'paused';
     const pickMode = phase === 'title' || phase === 'gameOver';
+    const showGameControls = playing && this.isTouchLike();
+    // Hide the whole bar on desktop during gameplay to free up canvas room.
+    const anyVisible = pickMode || (phase === 'waveClear') || showGameControls;
 
-    this.gameControls!.style.display = playing ? '' : 'none';
+    this.container.style.display = anyVisible ? '' : 'none';
+    this.gameControls!.style.display = showGameControls ? '' : 'none';
     this.modePicker!.style.display = pickMode ? '' : 'none';
     this.confirmBtn!.style.display = phase === 'waveClear' ? '' : 'none';
   }
@@ -41,6 +65,20 @@ export class OnScreenControls implements InputAdapter {
   private build(): HTMLElement {
     const c = document.createElement('div');
     c.id = 'osc';
+
+    // Floating mute button — always visible, top-right of canvas area
+    const muteBtn = document.createElement('button');
+    muteBtn.id = 'osc-mute';
+    muteBtn.className = 'osc-mute';
+    muteBtn.textContent = '🔊';
+    muteBtn.setAttribute('aria-label', 'Toggle mute');
+    this.muteBtn = muteBtn;
+    muteBtn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (this.onMuteToggle) this.setMuteState(this.onMuteToggle());
+    });
+    document.getElementById('app')?.appendChild(muteBtn);
 
     // Confirm button (only used for waveClear "NEXT WAVE")
     const confirmBtn = document.createElement('button');

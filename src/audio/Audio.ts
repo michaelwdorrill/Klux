@@ -1,8 +1,8 @@
 import type { FxState } from '../core/types';
 
-// Music playback rate per wave index — 2.2% faster each wave, capped at 1.45×
+// Music playback rate scales with the game's tempo — 0 = base speed, 1 = max
+// game speed (spawn interval at the floor). Caller passes a normalized factor.
 const MUSIC_BASE_RATE = 1.0;
-const MUSIC_RATE_PER_WAVE = 0.022;
 const MUSIC_MAX_RATE = 1.45;
 const MUSIC_RAMP_S = 2.5;
 const MUSIC_VOLUME = 0.38;
@@ -11,8 +11,9 @@ const MUSIC_VOLUME = 0.38;
 const CHAIN_SEMITONES_PER_STEP = 4;
 const SEMITONE_RATIO = Math.pow(2, 1 / 12);
 
-function waveRate(waveIndex: number): number {
-  return Math.min(MUSIC_MAX_RATE, MUSIC_BASE_RATE + waveIndex * MUSIC_RATE_PER_WAVE);
+function rateForFactor(speedFactor: number): number {
+  const clamped = Math.max(0, Math.min(1, speedFactor));
+  return MUSIC_BASE_RATE + (MUSIC_MAX_RATE - MUSIC_BASE_RATE) * clamped;
 }
 
 function chainPitchRate(chainStep: number): number {
@@ -39,7 +40,7 @@ export class Audio {
 
   private muted = false;
   private musicPlaying = false;
-  private currentWave = 0;
+  private currentSpeedFactor = 0;
 
   // ── Lifecycle ────────────────────────────────────────────────────
 
@@ -115,11 +116,13 @@ export class Audio {
 
   // ── Music control ────────────────────────────────────────────────
 
-  /** Notify the audio system that the wave changed so it can ramp the tempo. */
-  setWave(waveIndex: number): void {
-    this.currentWave = waveIndex;
+  /** Set music tempo as a normalized speed factor (0 = base, 1 = max game speed).
+   *  Caller derives this from the actual game tempo so music tracks gameplay
+   *  instead of just wave-number. */
+  setSpeedFactor(factor: number): void {
+    this.currentSpeedFactor = Math.max(0, Math.min(1, factor));
     if (this.musicSource && this.ctx) {
-      const target = waveRate(waveIndex);
+      const target = rateForFactor(this.currentSpeedFactor);
       this.musicSource.playbackRate.linearRampToValueAtTime(
         target,
         this.ctx.currentTime + MUSIC_RAMP_S
@@ -133,7 +136,7 @@ export class Audio {
     const src = this.ctx.createBufferSource();
     src.buffer = this.musicBuffer;
     src.loop = true;
-    src.playbackRate.value = waveRate(this.currentWave);
+    src.playbackRate.value = rateForFactor(this.currentSpeedFactor);
     src.connect(this.musicGain);
     src.start();
     this.musicSource = src;

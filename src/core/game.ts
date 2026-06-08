@@ -13,13 +13,20 @@ function newTile(color: number): Tile {
   return { id: _nextId++, color };
 }
 
+/** The "speed tier" driving spawn cadence and music tempo. Classic uses the
+ *  wave index; endless ramps once every 10 KLUXes so the player feels gradual
+ *  acceleration without any wave structure. */
+export function speedTier(state: GameState): number {
+  return state.mode === 'endless' ? Math.floor(state.kluxCount / 10) : state.wave.index;
+}
+
 function spawnTile(state: GameState): GameState {
   const { config, rng } = state;
   const tile = newTile(nextInt(rng, 0, config.colorCount));
   const lane = nextInt(rng, 0, config.cols);
   const falling: FallingTile = { tile, lane, progress: 0 };
   const interval = spawnIntervalMs(
-    state.wave.index,
+    speedTier(state),
     config.baseSpawnMs,
     config.minSpawnMs,
     config.spawnStepPerWave
@@ -60,20 +67,21 @@ function resolveMatches(state: GameState): GameState {
       well: clearCells(current.well, positions),
       score: current.score + points,
       waveProgress: goal === 'SCORE' ? current.score + points : progress,
+      kluxCount: current.kluxCount + lines.length,
     };
   }
 
   if (allClears.length === 0) return current;
 
-  // Check wave goal — in endless mode we never stop, just bump bonus and advance
+  // Classic only: check the wave goal and transition. Endless never breaks.
   let next = current;
-  if (current.waveProgress >= current.wave.target && current.phase === 'playing') {
+  if (
+    current.mode === 'classic' &&
+    current.waveProgress >= current.wave.target &&
+    current.phase === 'playing'
+  ) {
     const bonus = waveClearBonus(current.dropsRemaining, current.config.scoring);
-    if (current.mode === 'endless') {
-      next = startWave({ ...current, score: current.score + bonus }, current.wave.index + 1);
-    } else {
-      next = { ...current, phase: 'waveClear', score: current.score + bonus };
-    }
+    next = { ...current, phase: 'waveClear', score: current.score + bonus };
   }
 
   return {
@@ -147,14 +155,12 @@ function handleDrop(state: GameState): GameState {
   const newWell = dropTile(state.well, col, tile)!;
   let next: GameState = { ...state, paddle: remaining, well: newWell };
 
-  // Update SURVIVE goal progress — count tiles dropped
-  if (state.wave.goal === 'SURVIVE') {
+  // Update SURVIVE goal progress (classic only — endless has no waves to clear)
+  if (state.mode === 'classic' && state.wave.goal === 'SURVIVE') {
     next = { ...next, waveProgress: state.waveProgress + 1 };
     if (next.waveProgress >= next.wave.target) {
       const bonus = waveClearBonus(next.dropsRemaining, next.config.scoring);
-      next = next.mode === 'endless'
-        ? startWave({ ...next, score: next.score + bonus }, next.wave.index + 1)
-        : { ...next, phase: 'waveClear', score: next.score + bonus };
+      next = { ...next, phase: 'waveClear', score: next.score + bonus };
     }
   }
 
@@ -223,6 +229,7 @@ export function startGame(config: GameConfig, mode: GameMode = 'classic'): GameS
     spawnTimer: config.baseSpawnMs,
     rng,
     fx: { clears: [], chainStep: 0, caught: false },
+    kluxCount: 0,
   };
 }
 
@@ -276,9 +283,9 @@ export function step(state: GameState, dtMs: number, commands: Command[]): GameS
     }
   }
 
-  // SURVIVE goal: count tiles fed
+  // SURVIVE goal: count tiles fed (classic only)
   let waveProgress = s.waveProgress;
-  if (s.wave.goal === 'SURVIVE') {
+  if (s.mode === 'classic' && s.wave.goal === 'SURVIVE') {
     waveProgress = s.tilesFedThisWave;
   }
 
@@ -295,15 +302,9 @@ export function step(state: GameState, dtMs: number, commands: Command[]): GameS
     phase: gameOver ? 'gameOver' : s.phase,
   };
 
-  if (s.wave.goal === 'SURVIVE' && s.waveProgress >= s.wave.target) {
+  if (s.mode === 'classic' && s.wave.goal === 'SURVIVE' && s.waveProgress >= s.wave.target) {
     const bonus = waveClearBonus(s.dropsRemaining, s.config.scoring);
-    if (s.mode === 'endless') {
-      const fx = s.fx; // preserve this frame's audio cues across the transition
-      s = startWave({ ...s, score: s.score + bonus }, s.wave.index + 1);
-      s = { ...s, fx };
-    } else {
-      s = { ...s, phase: 'waveClear', score: s.score + bonus };
-    }
+    s = { ...s, phase: 'waveClear', score: s.score + bonus };
   }
 
   return s;

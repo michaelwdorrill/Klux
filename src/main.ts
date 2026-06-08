@@ -1,5 +1,6 @@
 import { DEFAULT_CONFIG } from './config';
-import { startGame, step } from './core/game';
+import { startGame, step, speedTier } from './core/game';
+import { spawnIntervalMs } from './core/waves';
 import type { GameState } from './core/types';
 import { Renderer } from './render/Renderer';
 import { InputManager } from './input/InputManager';
@@ -8,6 +9,7 @@ import { TouchAdapter } from './input/TouchAdapter';
 import { OnScreenControls } from './input/OnScreenControls';
 import { Audio } from './audio/Audio';
 import type { Command } from './core/commands';
+import { loadHighScores, recordScore, getMuted, setMuted } from './persistence/store';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const renderer = new Renderer(canvas);
@@ -46,10 +48,26 @@ audio.loadMusic('./audio/theme.mp3');
 audio.loadSfxFiles();
 renderer.getEffects().loadOwen('./images/owen.png');
 
-// Backtick toggles debug overlay; M toggles mute
+// Restore persisted mute preference + high scores
+if (getMuted()) audio.setMuted(true);
+let highScores = loadHighScores();
+renderer.setHighScores(highScores);
+
+onScreenControls.setMuteHandler(() => {
+  const muted = audio.toggleMute();
+  setMuted(muted);
+  return muted;
+});
+onScreenControls.setMuteState(audio.isMuted);
+
+// Backtick toggles debug overlay; M toggles mute (and persists)
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Backquote') renderer.debugMode = !renderer.debugMode;
-  if (e.code === 'KeyM') audio.toggleMute();
+  if (e.code === 'KeyM') {
+    const muted = audio.toggleMute();
+    setMuted(muted);
+    onScreenControls.setMuteState(muted);
+  }
 });
 
 const FIXED_MS = 1000 / 60;
@@ -58,7 +76,7 @@ const WAVE_CLEAR_AUTO_MS = 3000;
 let acc = 0;
 let last = performance.now();
 let waveClearEnteredAt: number | null = null;
-let lastWaveIndex = -1;
+let lastSpeedTier = -1;
 let lastPhase = state.phase;
 
 document.addEventListener('visibilitychange', () => {
@@ -89,15 +107,34 @@ function frame(now: number): void {
     acc -= FIXED_MS;
   }
 
-  // Ramp music tempo when wave advances
-  if (state.wave.index !== lastWaveIndex) {
-    audio.setWave(state.wave.index);
-    lastWaveIndex = state.wave.index;
+  // Music tempo follows the same speed tier the simulation uses for spawning:
+  //  - classic: wave index
+  //  - endless: floor(kluxCount / 10) — bumps quietly every 10 KLUXes
+  const tier = speedTier(state);
+  if (tier !== lastSpeedTier) {
+    const { baseSpawnMs, minSpawnMs, spawnStepPerWave } = state.config;
+    const spawnMs = spawnIntervalMs(tier, baseSpawnMs, minSpawnMs, spawnStepPerWave);
+    const factor = (baseSpawnMs - spawnMs) / (baseSpawnMs - minSpawnMs);
+    audio.setSpeedFactor(factor);
+    lastSpeedTier = tier;
   }
 
   // Play wave-clear jingle on transition
   if (state.phase === 'waveClear' && lastPhase === 'playing') {
     audio.sfxWaveClear();
+  }
+
+  // On game-over, record the score and flag a new best for the overlay
+  if (state.phase === 'gameOver' && lastPhase !== 'gameOver') {
+    const isNewBest = recordScore(state.mode, state.score);
+    renderer.setNewBest(isNewBest);
+    if (isNewBest) {
+      highScores = loadHighScores();
+      renderer.setHighScores(highScores);
+    }
+  }
+  if (state.phase === 'playing' && lastPhase !== 'playing') {
+    renderer.setNewBest(false);
   }
 
   // Per-frame SFX (catch + foul). Klux/Wow handled per-clear below.
