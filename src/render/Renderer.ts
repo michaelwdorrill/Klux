@@ -20,7 +20,7 @@ const DROP_EMPTY = 'rgba(255,255,255,0.15)';
 
 export class Renderer {
   private readonly canvas: HTMLCanvasElement;
-  private readonly ctx: CanvasRenderingContext2D;
+  protected readonly ctx: CanvasRenderingContext2D;
   private layout: Layout | null = null;
   private readonly effects = new Effects();
   private lastFrameMs = 0;
@@ -270,7 +270,7 @@ export class Renderer {
     ctx.strokeRect(wellOrigin.x, wellOrigin.y, cellSize * cols, cellSize * rows);
   }
 
-  private drawConveyor(state: GameState, layout: Layout, alpha: number, hoveredLane: number | null = null): void {
+  protected drawConveyor(state: GameState, layout: Layout, alpha: number, hoveredLane: number | null = null): void {
     const { ctx } = this;
     const { cellSize, cols, conveyorRows, conveyorOrigin } = layout;
 
