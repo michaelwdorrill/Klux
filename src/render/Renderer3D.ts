@@ -165,7 +165,7 @@ export class Renderer3D extends Renderer {
       const flatCX = pfX + (ft.lane + 0.5) * cellSize;
       const tx = projX(vpX, flatCX, s) - tileSize / 2;
 
-      drawTile(ctx, tx, ty, tileSize, ft.tile.color);
+      drawTile(ctx, tx, ty, tileSize, ft.tile.color, 1, 1, ft.tile.type);
     }
   }
 }
