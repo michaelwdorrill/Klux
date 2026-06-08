@@ -225,28 +225,37 @@ export class Renderer {
     ctx.fillStyle = PADDLE_BG;
     ctx.fillRect(paddleOrigin.x, paddleOrigin.y + 2, cellSize * cols, cellSize - 4);
 
+    // Ghost slots for all lanes
+    for (let col = 0; col < cols; col++) {
+      drawGhostTile(ctx, paddleOrigin.x + col * cellSize, paddleOrigin.y, cellSize);
+    }
+
     // Active lane highlight
     const activeX = paddleOrigin.x + state.paddleLane * cellSize;
     ctx.fillStyle = PADDLE_ACTIVE;
     ctx.fillRect(activeX + 1, paddleOrigin.y + 2, cellSize - 2, cellSize - 4);
 
-    // Ghost slots for non-active lanes
-    for (let col = 0; col < cols; col++) {
-      if (col !== state.paddleLane) {
-        drawGhostTile(ctx, paddleOrigin.x + col * cellSize, paddleOrigin.y, cellSize);
+    // Show only the TOP tile of the stack on the paddle bar — rest is in the stack panel
+    if (state.paddle.length > 0) {
+      const top = state.paddle[state.paddle.length - 1];
+      drawTile(ctx, activeX, paddleOrigin.y, cellSize, top.color);
+
+      // Stack depth badge on top-right corner of the tile
+      if (state.paddle.length > 1) {
+        const bx = activeX + cellSize * 0.62;
+        const by = paddleOrigin.y + cellSize * 0.04;
+        const br = cellSize * 0.2;
+        ctx.fillStyle = 'rgba(10,12,30,0.85)';
+        ctx.beginPath();
+        ctx.arc(bx + br, by + br, br, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#e0e0e0';
+        ctx.font = `bold ${cellSize * 0.25}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${state.paddle.length}`, bx + br, by + br);
       }
-    }
-
-    // Paddle stack — tiles drawn upward from paddle row
-    for (let i = 0; i < state.paddle.length; i++) {
-      const tile = state.paddle[i];
-      const x = paddleOrigin.x + state.paddleLane * cellSize;
-      const y = paddleOrigin.y - i * cellSize;
-      drawTile(ctx, x, y, cellSize, tile.color);
-    }
-
-    // Empty paddle hint
-    if (state.paddle.length === 0) {
+    } else {
       ctx.save();
       ctx.fillStyle = 'rgba(255,255,255,0.25)';
       ctx.font = `${cellSize * 0.45}px sans-serif`;
@@ -254,6 +263,45 @@ export class Renderer {
       ctx.textBaseline = 'middle';
       ctx.fillText('▼', activeX + cellSize / 2, paddleOrigin.y + cellSize / 2);
       ctx.restore();
+    }
+
+    // Stack panel: full stack shown to the right of the playfield (portrait)
+    // or in the HUD (landscape) — drawn here so it's always on top of the bg
+    this.drawStackPanel(state, layout);
+  }
+
+  private drawStackPanel(state: GameState, layout: Layout): void {
+    const { ctx } = this;
+    const { stackX, stackY, stackCellSize, paddleOrigin, isPortrait } = layout;
+    const stack = state.paddle;
+    if (stack.length === 0 && isPortrait) return;
+
+    const labelSize = Math.max(9, stackCellSize * 0.28);
+    const gap = 3;
+
+    if (isPortrait) {
+      // Vertical strip to the right: top = next-to-drop, downward = deeper in stack
+      ctx.save();
+      ctx.fillStyle = 'rgba(14,18,36,0.7)';
+      const panelH = stack.length * (stackCellSize + gap) + labelSize + 6;
+      ctx.fillRect(stackX - 4, stackY - labelSize - 6, stackCellSize + 8, panelH + 8);
+
+      ctx.fillStyle = 'rgba(150,150,180,0.6)';
+      ctx.font = `${labelSize}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText('HELD', stackX + stackCellSize / 2, stackY - labelSize - 2);
+
+      // Draw from top of stack (index = last) downward
+      for (let i = stack.length - 1; i >= 0; i--) {
+        const slot = stack.length - 1 - i;
+        const ty = stackY + slot * (stackCellSize + gap);
+        drawTile(ctx, stackX, ty, stackCellSize, stack[i].color, 1, 0.9);
+      }
+      ctx.restore();
+    } else {
+      // In landscape the HUD drawHud() handles this; nothing extra needed here
+      void paddleOrigin;
     }
   }
 
@@ -341,6 +389,24 @@ export class Renderer {
       y += fontSize + 6;
 
       drawDropIcons(ctx, state.dropsRemaining, state.config.maxDrops, cx, y, fontSize * 1.3, 'center');
+      y += fontSize * 1.3 + 16;
+
+      // Stack panel in landscape HUD
+      if (state.paddle.length > 0) {
+        ctx.fillStyle = TEXT_DIM;
+        ctx.font = `${fontSize - 1}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText('HELD', cx, y);
+        y += fontSize + 4;
+
+        const sc = layout.stackCellSize;
+        const gap = 4;
+        for (let i = state.paddle.length - 1; i >= 0; i--) {
+          const slot = state.paddle.length - 1 - i;
+          drawTile(ctx, cx - sc / 2, y + slot * (sc + gap), sc, state.paddle[i].color, 1, 0.9);
+        }
+      }
     }
   }
 }

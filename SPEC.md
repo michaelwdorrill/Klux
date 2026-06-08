@@ -595,6 +595,26 @@ Work strictly in this order. Each phase ends in a committable, runnable state.
 - Difficulty presets and an endless mode.
 - Online leaderboard (would introduce a backend — flag as a separate decision).
 
+### Phase 11 (planned): Perspective / pseudo-3D renderer
+
+The original Klax arcade game used a perspective projection — lanes converge at a
+vanishing point at the top, tiles scale up as they approach the paddle. This is a
+**render-only change**: `GameState`, `core/`, `input/`, and `audio/` are untouched.
+
+Plan:
+- Complete the 2D version through Phase 10 first. The 2D game informs tile sizing,
+  timing feel, and lane geometry that carry over directly.
+- Add `src/render/Renderer3D.ts` alongside `Renderer.ts`. It accepts the same
+  `draw(state, alpha)` interface, so swapping is one line in `main.ts`.
+- Use canvas 2D with a perspective divide: for a tile at conveyor progress `p` (0=far,
+  1=near), compute a scale factor `s(p) = nearScale / (1 - p * (1 - nearScale/farScale))`
+  and position it along the projected lane centerline.
+- The `layout.ts` geometry functions (`laneToX`, `pixelToLane`) will need 3D equivalents
+  that invert the perspective math — required for the TouchAdapter to stay accurate.
+- Reference: the intro grid effect in *Trapped in the Phone* used a similar
+  scrolling-from-horizon approach on canvas 2D and is a useful starting point for
+  tuning the vanishing-point constants.
+
 ---
 
 ## 17. Conventions for Claude Code

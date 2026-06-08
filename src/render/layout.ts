@@ -14,6 +14,10 @@ export interface Layout {
   hudY: number;
   hudW: number;
   hudH: number;
+  // Stack panel: small column to the right of the playfield showing held tiles
+  stackX: number;
+  stackY: number;
+  stackCellSize: number;
   isPortrait: boolean;
 }
 
@@ -29,8 +33,11 @@ export function computeLayout(
 
   // In landscape, reserve space on the right for a HUD panel
   const hudW = isPortrait ? canvasW : Math.min(160, canvasW * 0.22);
-  const playAreaW = canvasW - (isPortrait ? 0 : hudW);
-  const playAreaH = isPortrait ? canvasH - 80 : canvasH; // bottom HUD bar in portrait
+  // In portrait, reserve a stack panel column to the right of the playfield
+  // and a bottom HUD bar
+  const stackPanelW = isPortrait ? 48 : 0; // only needed in portrait; landscape uses HUD
+  const playAreaW = canvasW - (isPortrait ? stackPanelW : hudW);
+  const playAreaH = isPortrait ? canvasH - 80 : canvasH;
 
   const marginH = isPortrait ? 8 : 16;
   const marginV = isPortrait ? 8 : 16;
@@ -52,6 +59,15 @@ export function computeLayout(
   const hudY = isPortrait ? canvasH - 80 : 0;
   const hudHeight = isPortrait ? 80 : canvasH;
 
+  // Stack panel: to the right of the playfield (portrait) or embedded in the HUD (landscape)
+  const stackCellSize = isPortrait ? 36 : Math.min(44, (hudW - 16) * 0.8);
+  const stackX = isPortrait
+    ? playfieldX + playfieldWidth + 6
+    : hudX + (hudW - stackCellSize) / 2;
+  const stackY = isPortrait
+    ? paddleOrigin.y - 4  // aligned with the paddle row
+    : hudHeight * 0.5;    // will be positioned by HUD draw code
+
   return {
     cellSize,
     cols,
@@ -68,6 +84,9 @@ export function computeLayout(
     hudY,
     hudW,
     hudH: hudHeight,
+    stackX,
+    stackY,
+    stackCellSize,
     isPortrait,
   };
 }
