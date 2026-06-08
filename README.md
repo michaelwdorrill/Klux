@@ -113,8 +113,8 @@ src/
 
 - [x] **Phase 1** — Scaffold: Vite + TS + ESLint + Vitest + canvas loop
 - [x] **Phase 2** — Pure core + headless tests
-- [ ] **Phase 3** — Render static game state
-- [ ] **Phase 4** — Keyboard adapter + playable desktop game
+- [x] **Phase 3** — Render static game state
+- [x] **Phase 4** — Keyboard adapter + playable desktop game
 - [ ] **Phase 5** — Conveyor timing, waves, game-over
 - [ ] **Phase 6** — Touch + on-screen controls
 - [ ] **Phase 7** — Audio (synthesized SFX)
