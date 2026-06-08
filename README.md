@@ -29,16 +29,16 @@ A Klax-inspired tile matching game — playable in any browser, installable as a
 
 ## How to Play
 
-Tiles fall down a conveyor toward your paddle. Catch them, then drop them into the 5×5 well to form lines of 3 or more matching colors — **Klaxes**. Lines can be horizontal, vertical, or diagonal. Diagonals score big.
+Tiles fall down a conveyor toward your paddle. Catch them, then drop them into the 5×5 well to form lines of 3 or more matching colors — **KLUXes**. Lines can be horizontal, vertical, or diagonal. Diagonals score big.
 
-Each wave has a goal (e.g. "Score 5000" or "Make 4 diagonal Klaxes"). Clear the goal to advance. You have 3 drops — miss tiles or overfill columns and you lose one. Lose all 3 and it's game over.
+Each wave has a goal (e.g. "Score 5000" or "Make 4 diagonal KLUXes"). Clear the goal to advance. You have 3 drops — miss tiles or overfill columns and you lose one. Lose all 3 and it's game over.
 
 **Scoring:**
-- Horizontal / Vertical Klax (3 tiles): 1,000 pts
-- Diagonal Klax (3 tiles): 5,000 pts
+- Horizontal / Vertical KLUX (3 tiles): 1,000 pts
+- Diagonal KLUX (3 tiles): 5,000 pts
 - Each extra tile beyond 3: +1,000 pts
-- Big Klax (5 in a row): +5,000 bonus
-- Multi-Klax (multiple lines from one drop): score × number of lines
+- Big KLUX (5 in a row): +5,000 bonus
+- Multi-KLUX (multiple lines from one drop): score × number of lines
 - Chain (cascade): score × chain depth
 - Wave clear bonus: drops remaining × 1,000 pts
 
@@ -80,7 +80,7 @@ src/
 ├── core/                # Pure logic — no DOM, no canvas (unit-tested)
 │   ├── types.ts
 │   ├── board.ts         # well grid, gravity/compaction
-│   ├── matcher.ts       # Klax detection (H/V/diagonal), chain resolution
+│   ├── matcher.ts       # KLUX detection (H/V/diagonal), chain resolution
 │   ├── paddle.ts        # stack model
 │   ├── rng.ts           # seedable PRNG
 │   ├── scoring.ts
@@ -112,7 +112,7 @@ src/
 ## Build Phases
 
 - [x] **Phase 1** — Scaffold: Vite + TS + ESLint + Vitest + canvas loop
-- [ ] **Phase 2** — Pure core + headless tests
+- [x] **Phase 2** — Pure core + headless tests
 - [ ] **Phase 3** — Render static game state
 - [ ] **Phase 4** — Keyboard adapter + playable desktop game
 - [ ] **Phase 5** — Conveyor timing, waves, game-over
