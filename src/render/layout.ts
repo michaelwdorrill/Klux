@@ -33,10 +33,9 @@ export function computeLayout(
 
   // In landscape, reserve space on the right for a HUD panel
   const hudW = isPortrait ? canvasW : Math.min(160, canvasW * 0.22);
-  // In portrait, reserve a stack panel column to the right of the playfield
-  // and a bottom HUD bar
-  const stackPanelW = isPortrait ? 48 : 0; // only needed in portrait; landscape uses HUD
-  const playAreaW = canvasW - (isPortrait ? stackPanelW : hudW);
+  // In portrait the stack panel is pinned to the right edge (not reserved in play area)
+  // so the playfield can be centred on the full canvas.
+  const playAreaW = isPortrait ? canvasW : canvasW - hudW;
   const playAreaH = isPortrait ? canvasH - 80 : canvasH;
 
   const marginH = isPortrait ? 8 : 16;
@@ -48,21 +47,24 @@ export function computeLayout(
 
   const playfieldWidth = cellSize * cols;
   const playfieldHeight = cellSize * totalRows;
-  const playfieldX = Math.floor((playAreaW - playfieldWidth) / 2);
+  // Centre the playfield on the full canvas (not just the play area) so the
+  // board is visually centred regardless of HUD/stack-panel placement.
+  const playfieldX = Math.floor((canvasW - playfieldWidth) / 2);
   const playfieldY = Math.floor((playAreaH - playfieldHeight) / 2);
 
   const conveyorOrigin = { x: playfieldX, y: playfieldY };
   const paddleOrigin = { x: playfieldX, y: playfieldY + cellSize * conveyorRows };
   const wellOrigin = { x: playfieldX, y: playfieldY + cellSize * (conveyorRows + 1) };
 
-  const hudX = isPortrait ? 0 : playAreaW;
+  const hudX = isPortrait ? 0 : canvasW - hudW;
   const hudY = isPortrait ? canvasH - 80 : 0;
   const hudHeight = isPortrait ? 80 : canvasH;
 
-  // Stack panel: to the right of the playfield (portrait) or embedded in the HUD (landscape)
-  const stackCellSize = isPortrait ? 36 : Math.min(44, (hudW - 16) * 0.8);
+  // Stack panel: pinned to the right edge in portrait; embedded in HUD in landscape.
+  // Use a smaller cell size (28px) so it fits without reserving layout space.
+  const stackCellSize = isPortrait ? 28 : Math.min(44, (hudW - 16) * 0.8);
   const stackX = isPortrait
-    ? playfieldX + playfieldWidth + 6
+    ? Math.min(playfieldX + playfieldWidth + 4, canvasW - stackCellSize - 2)
     : hudX + (hudW - stackCellSize) / 2;
   const stackY = isPortrait
     ? paddleOrigin.y - 4  // aligned with the paddle row
