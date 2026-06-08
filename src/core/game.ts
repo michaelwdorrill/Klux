@@ -1,4 +1,4 @@
-import type { GameState, GameConfig, Tile, FallingTile, ClearEvent, Wave } from './types';
+import type { GameState, GameConfig, Tile, FallingTile, ClearEvent, Wave, GameMode } from './types';
 import { createWell, dropTile, clearCells, columnHeight, isColumnFull } from './board';
 import { findKluxes, collectClearPositions } from './matcher';
 import { canCatch, catchTile, dropTop, movePaddle } from './paddle';
@@ -65,27 +65,34 @@ function resolveMatches(state: GameState): GameState {
 
   if (allClears.length === 0) return current;
 
-  // Check wave goal
-  let phase = current.phase;
-  let score = current.score;
+  // Check wave goal — in endless mode we never stop, just bump bonus and advance
+  let next = current;
   if (current.waveProgress >= current.wave.target && current.phase === 'playing') {
-    phase = 'waveClear';
-    score += waveClearBonus(current.dropsRemaining, current.config.scoring);
+    const bonus = waveClearBonus(current.dropsRemaining, current.config.scoring);
+    if (current.mode === 'endless') {
+      next = startWave({ ...current, score: current.score + bonus }, current.wave.index + 1);
+    } else {
+      next = { ...current, phase: 'waveClear', score: current.score + bonus };
+    }
   }
 
   return {
-    ...current,
-    score,
-    phase,
+    ...next,
     fx: {
-      ...current.fx,
-      clears: [...current.fx.clears, ...allClears],
+      ...next.fx,
+      clears: [...next.fx.clears, ...allClears],
       chainStep,
     },
   };
 }
 
 function applyCommand(state: GameState, cmd: Command): GameState {
+  if (cmd.type === 'START_CLASSIC' && (state.phase === 'title' || state.phase === 'gameOver')) {
+    return startGame(state.config, 'classic');
+  }
+  if (cmd.type === 'START_ENDLESS' && (state.phase === 'title' || state.phase === 'gameOver')) {
+    return startGame(state.config, 'endless');
+  }
   if (state.phase === 'waveClear' || state.phase === 'gameOver' || state.phase === 'title') {
     if (cmd.type === 'CONFIRM') return handleConfirm(state);
     return state;
@@ -112,6 +119,9 @@ function applyCommand(state: GameState, cmd: Command): GameState {
       return { ...state, phase: 'paused' };
     case 'CONFIRM':
       return handleConfirm(state);
+    case 'START_CLASSIC':
+    case 'START_ENDLESS':
+      return state; // handled above
   }
 }
 
@@ -141,7 +151,10 @@ function handleDrop(state: GameState): GameState {
   if (state.wave.goal === 'SURVIVE') {
     next = { ...next, waveProgress: state.waveProgress + 1 };
     if (next.waveProgress >= next.wave.target) {
-      next = { ...next, phase: 'waveClear', score: next.score + waveClearBonus(next.dropsRemaining, next.config.scoring) };
+      const bonus = waveClearBonus(next.dropsRemaining, next.config.scoring);
+      next = next.mode === 'endless'
+        ? startWave({ ...next, score: next.score + bonus }, next.wave.index + 1)
+        : { ...next, phase: 'waveClear', score: next.score + bonus };
     }
   }
 
@@ -163,13 +176,13 @@ function handleFlip(state: GameState): GameState {
 
 function handleConfirm(state: GameState): GameState {
   if (state.phase === 'title') {
-    return startGame(state.config);
+    return startGame(state.config, 'classic');
   }
   if (state.phase === 'waveClear') {
     return startWave(state, state.wave.index + 1);
   }
   if (state.phase === 'gameOver') {
-    return startGame(state.config);
+    return startGame(state.config, state.mode);
   }
   return state;
 }
@@ -190,12 +203,13 @@ function startWave(state: GameState, waveIndex: number): GameState {
   };
 }
 
-export function startGame(config: GameConfig): GameState {
+export function startGame(config: GameConfig, mode: GameMode = 'classic'): GameState {
   const rng = createRng(config.seed ?? Date.now());
   const wave = getWave(0);
   return {
     config,
     phase: 'playing',
+    mode,
     well: createWell(config),
     paddle: [],
     paddleLane: Math.floor(config.cols / 2),
@@ -282,7 +296,14 @@ export function step(state: GameState, dtMs: number, commands: Command[]): GameS
   };
 
   if (s.wave.goal === 'SURVIVE' && s.waveProgress >= s.wave.target) {
-    s = { ...s, phase: 'waveClear', score: s.score + waveClearBonus(s.dropsRemaining, s.config.scoring) };
+    const bonus = waveClearBonus(s.dropsRemaining, s.config.scoring);
+    if (s.mode === 'endless') {
+      const fx = s.fx; // preserve this frame's audio cues across the transition
+      s = startWave({ ...s, score: s.score + bonus }, s.wave.index + 1);
+      s = { ...s, fx };
+    } else {
+      s = { ...s, phase: 'waveClear', score: s.score + bonus };
+    }
   }
 
   return s;

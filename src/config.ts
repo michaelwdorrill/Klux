@@ -12,13 +12,13 @@ export const DEFAULT_CONFIG: GameConfig = {
   // Decreases within a wave as more tiles are fed (rampPerTile), and between
   // waves via shorter spawn intervals (spawnStepPerWave).
   baseTravelMs: 3500,   // generous on wave 1 — gives time to learn the controls
-  minTravelMs: 750,     // maximum speed reached deep into late waves
-  rampPerTile: 12,      // ms reduction per tile fed this wave (gentle within-wave ramp)
+  minTravelMs: 900,     // floor — keeps late waves reactable while goals carry the curve
+  rampPerTile: 8,       // ms reduction per tile fed this wave (gentler within-wave ramp)
 
   // Time between tile spawns — decreases each wave
   baseSpawnMs: 2200,    // one tile every 2.2s on wave 1
-  minSpawnMs: 550,      // floor: one tile every 0.55s on late waves
-  spawnStepPerWave: 110,// ms reduction per wave (wave 5 ≈ 1650ms, wave 10 ≈ 1100ms)
+  minSpawnMs: 700,      // floor: about one tile every 0.7s on late waves
+  spawnStepPerWave: 80, // gentler — wave 5 ≈ 1800ms, wave 10 ≈ 1400ms, wave 20 ≈ 700ms
 
   scoring: {
     horizontal: 1000,

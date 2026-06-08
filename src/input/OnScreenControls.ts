@@ -8,6 +8,7 @@ export class OnScreenControls implements InputAdapter {
   private emit: ((cmd: Command) => void) | null = null;
   private container: HTMLElement | null = null;
   private confirmBtn: HTMLButtonElement | null = null;
+  private modePicker: HTMLElement | null = null;
   private gameControls: HTMLElement | null = null;
 
   isApplicable(): boolean {
@@ -30,21 +31,32 @@ export class OnScreenControls implements InputAdapter {
   update(phase: Phase): void {
     if (!this.container) return;
     const playing = phase === 'playing' || phase === 'paused';
+    const pickMode = phase === 'title' || phase === 'gameOver';
+
     this.gameControls!.style.display = playing ? '' : 'none';
-    this.confirmBtn!.style.display = playing ? 'none' : '';
-    this.confirmBtn!.textContent = confirmLabel(phase);
+    this.modePicker!.style.display = pickMode ? '' : 'none';
+    this.confirmBtn!.style.display = phase === 'waveClear' ? '' : 'none';
   }
 
   private build(): HTMLElement {
     const c = document.createElement('div');
     c.id = 'osc';
 
-    // Confirm button (title / wave-clear / game-over)
+    // Confirm button (only used for waveClear "NEXT WAVE")
     const confirmBtn = document.createElement('button');
     confirmBtn.className = 'osc-btn osc-confirm';
-    confirmBtn.textContent = 'TAP TO PLAY';
-    confirmBtn.setAttribute('aria-label', 'Confirm');
+    confirmBtn.textContent = 'NEXT WAVE ▶';
+    confirmBtn.setAttribute('aria-label', 'Continue');
     this.confirmBtn = confirmBtn;
+
+    // Mode picker — title and gameOver
+    const mp = document.createElement('div');
+    mp.className = 'osc-mode-picker';
+    mp.innerHTML = `
+      <button class="osc-btn osc-mode" data-cmd="START_CLASSIC" aria-label="Classic mode">CLASSIC</button>
+      <button class="osc-btn osc-mode" data-cmd="START_ENDLESS" aria-label="Endless mode">ENDLESS</button>
+    `;
+    this.modePicker = mp;
 
     // Game controls (playing / paused)
     const gc = document.createElement('div');
@@ -63,9 +75,9 @@ export class OnScreenControls implements InputAdapter {
     this.gameControls = gc;
 
     c.appendChild(confirmBtn);
+    c.appendChild(mp);
     c.appendChild(gc);
 
-    // Single delegated handler for all buttons
     c.addEventListener('pointerdown', (e) => {
       if (!this.emit) return;
       e.preventDefault();
@@ -83,11 +95,4 @@ export class OnScreenControls implements InputAdapter {
 
     return c;
   }
-}
-
-function confirmLabel(phase: Phase): string {
-  if (phase === 'title')     return 'TAP TO PLAY';
-  if (phase === 'waveClear') return 'NEXT WAVE ▶';
-  if (phase === 'gameOver')  return 'PLAY AGAIN';
-  return 'CONTINUE';
 }

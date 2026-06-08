@@ -94,6 +94,27 @@
         background: rgba(67,97,238,0.3);
         border-color: rgba(67,97,238,0.6);
       }
+
+      .osc-mode-picker {
+        display: flex;
+        gap: 8px;
+      }
+      .osc-mode {
+        flex: 1;
+        max-width: none;
+        padding: 16px;
+        font-size: 17px;
+        font-weight: bold;
+        letter-spacing: 0.06em;
+      }
+      .osc-mode[data-cmd="START_CLASSIC"] {
+        background: rgba(67,97,238,0.3);
+        border-color: rgba(67,97,238,0.6);
+      }
+      .osc-mode[data-cmd="START_ENDLESS"] {
+        background: rgba(244,162,97,0.25);
+        border-color: rgba(244,162,97,0.55);
+      }
     </style>
   </head>
   <body>

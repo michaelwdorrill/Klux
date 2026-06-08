@@ -62,6 +62,12 @@ export class KeyboardAdapter implements InputAdapter {
         return { type: 'PAUSE_TOGGLE' };
       case 'Enter':
         return { type: 'CONFIRM' };
+      case 'Digit1':
+      case 'Numpad1':
+        return { type: 'START_CLASSIC' };
+      case 'Digit2':
+      case 'Numpad2':
+        return { type: 'START_ENDLESS' };
       default:
         return null;
     }

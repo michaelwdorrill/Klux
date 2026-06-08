@@ -24,6 +24,7 @@ const SFX_FILES: Record<string, string> = {
   Drop: './audio/Drop.wav',
   Klux: './audio/Klux.wav',
   LevelClear: './audio/LevelClear.wav',
+  Wow: './audio/wow.mp3',
 };
 
 export class Audio {
@@ -139,22 +140,28 @@ export class Audio {
     this.musicPlaying = true;
   }
 
-  // ── SFX consumption (called every frame with game FX state) ──────
+  // ── SFX consumption (catch/foul each frame; clears handled per-event) ──
 
   consume(fx: FxState): void {
     if (!this.ctx || this.muted) return;
-
     if (fx.caught) this.playSfx('Catch');
-
     if (fx.lastFoul === 'missed' || fx.lastFoul === 'fullColumn') {
       this.playSfx('Drop');
     }
+  }
 
-    for (const ev of fx.clears) {
-      const gainMult = ev.lines.length > 1 ? 1.6 : 1.0;
-      const rate = chainPitchRate(ev.chainStep);
-      this.playSfx('Klux', gainMult, rate);
-    }
+  /** Normal Klux SFX — pitched up per chain step, louder for multi-KLUX. */
+  playKlux(chainStep: number, lineCount: number): void {
+    if (!this.ctx || this.muted) return;
+    const gainMult = lineCount > 1 ? 1.6 : 1.0;
+    const rate = chainPitchRate(chainStep);
+    this.playSfx('Klux', gainMult, rate);
+  }
+
+  /** Easter-egg Klux substitute. Plays in place of Klux.wav. */
+  playWow(): void {
+    if (!this.ctx || this.muted) return;
+    this.playSfx('Wow', 1.4);
   }
 
   /** Play the level-clear jingle (called from main.ts on waveClear transition).
