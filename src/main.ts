@@ -6,6 +6,7 @@ import { Renderer } from './render/Renderer';
 import { InputManager } from './input/InputManager';
 import { KeyboardAdapter } from './input/KeyboardAdapter';
 import { TouchAdapter } from './input/TouchAdapter';
+import { PointerAdapter } from './input/PointerAdapter';
 import { OnScreenControls } from './input/OnScreenControls';
 import { Audio } from './audio/Audio';
 import type { Command } from './core/commands';
@@ -19,6 +20,11 @@ const input = new InputManager();
 let state: GameState = { ...startGame(DEFAULT_CONFIG), phase: 'title' };
 
 const onScreenControls = new OnScreenControls();
+const pointerAdapter = new PointerAdapter(
+  canvas,
+  () => renderer.getLayout(),
+  () => state.paddleLane,
+);
 input.register(new KeyboardAdapter());
 input.register(new TouchAdapter(
   canvas,
@@ -26,6 +32,7 @@ input.register(new TouchAdapter(
   () => state.paddleLane,
   () => state.phase,
 ));
+input.register(pointerAdapter);
 input.register(onScreenControls);
 
 function applyCanvasSize(): void {
@@ -159,7 +166,7 @@ function frame(now: number): void {
   lastPhase = state.phase;
 
   onScreenControls.update(state.phase);
-  renderer.draw(state, acc / FIXED_MS);
+  renderer.draw(state, acc / FIXED_MS, pointerAdapter.hoveredLane);
   requestAnimationFrame(frame);
 }
 
