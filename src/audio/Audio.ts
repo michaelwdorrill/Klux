@@ -157,9 +157,22 @@ export class Audio {
     }
   }
 
-  /** Play the level-clear jingle (called from main.ts on waveClear transition). */
+  /** Play the level-clear jingle (called from main.ts on waveClear transition).
+   *  Ducks the music so the jingle is the moment. */
   sfxWaveClear(): void {
-    this.playSfx('LevelClear');
+    this.playSfx('LevelClear', 2.2);
+    this.duckMusic(2.6);
+  }
+
+  private duckMusic(durationS: number): void {
+    if (!this.ctx || !this.musicGain) return;
+    const t = this.ctx.currentTime;
+    const g = this.musicGain.gain;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(g.value, t);
+    g.linearRampToValueAtTime(0.0001, t + 0.08);
+    g.setValueAtTime(0.0001, t + durationS - 0.4);
+    g.linearRampToValueAtTime(MUSIC_VOLUME, t + durationS);
   }
 
   // ── Settings ─────────────────────────────────────────────────────
