@@ -23,7 +23,6 @@ const onScreenControls = new OnScreenControls();
 const pointerAdapter = new PointerAdapter(
   canvas,
   () => renderer.getLayout(),
-  () => state.paddleLane,
 );
 input.register(new KeyboardAdapter());
 input.register(new TouchAdapter(
