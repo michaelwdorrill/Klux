@@ -2,12 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { scoreLines } from '../src/core/scoring';
 import type { KluxLine, ScoringConfig } from '../src/core/types';
 
+// Matches Klax arcade manual: [3-tile, 4-tile, 5-tile]
 const scoring: ScoringConfig = {
-  horizontal: 1000,
-  vertical: 1000,
-  diagonal: 5000,
-  extraTile: 1000,
-  bigKluxBonus: 5000,
+  vertical:         [50,  1000, 1500],
+  horizontal:       [100,  500, 1000],
+  diagonal:         [500, 1000, 1500],
   waveClearPerDrop: 1000,
 };
 
@@ -16,6 +15,14 @@ function hLine(len: number): KluxLine {
     orientation: 'horizontal',
     color: 0,
     tiles: Array.from({ length: len }, (_, i) => ({ row: 0, col: i })),
+  };
+}
+
+function vLine(len: number): KluxLine {
+  return {
+    orientation: 'vertical',
+    color: 0,
+    tiles: Array.from({ length: len }, (_, i) => ({ row: i, col: 0 })),
   };
 }
 
@@ -28,45 +35,62 @@ function dLine(len: number): KluxLine {
 }
 
 describe('scoreLines', () => {
-  it('scores a horizontal 3-line at base value', () => {
-    expect(scoreLines([hLine(3)], scoring, 1)).toBe(1000);
+  it('horizontal 3-tile = 100', () => {
+    expect(scoreLines([hLine(3)], scoring, 1)).toBe(100);
   });
 
-  it('diagonal scores higher than horizontal (same length)', () => {
-    const h = scoreLines([hLine(3)], scoring, 1);
-    const d = scoreLines([dLine(3)], scoring, 1);
-    expect(d).toBeGreaterThan(h);
+  it('horizontal 4-tile = 500', () => {
+    expect(scoreLines([hLine(4)], scoring, 1)).toBe(500);
   });
 
-  it('each extra tile beyond 3 adds extraTile points', () => {
-    // 4-tile horizontal = 1000 + 1000 = 2000
-    expect(scoreLines([hLine(4)], scoring, 1)).toBe(2000);
-    // 5-tile horizontal = 1000 + 2*1000 + 5000 bigBonus = 8000
-    expect(scoreLines([hLine(5)], scoring, 1)).toBe(8000);
+  it('horizontal 5-tile = 1000', () => {
+    expect(scoreLines([hLine(5)], scoring, 1)).toBe(1000);
   });
 
-  it('big KLUX bonus applies at 5 tiles', () => {
-    const score4 = scoreLines([hLine(4)], scoring, 1);
-    const score5 = scoreLines([hLine(5)], scoring, 1);
-    expect(score5 - score4).toBe(scoring.extraTile + scoring.bigKluxBonus);
+  it('vertical 3-tile = 50', () => {
+    expect(scoreLines([vLine(3)], scoring, 1)).toBe(50);
   });
 
-  it('multi-KLUX multiplier: 2 lines → score × 2', () => {
-    const single = scoreLines([hLine(3)], scoring, 1);
-    const multi = scoreLines([hLine(3), hLine(3)], scoring, 1);
-    expect(multi).toBe(single * 2 * 2); // (1000+1000) × 2
+  it('vertical 4-tile = 1000', () => {
+    expect(scoreLines([vLine(4)], scoring, 1)).toBe(1000);
+  });
+
+  it('vertical 5-tile = 1500', () => {
+    expect(scoreLines([vLine(5)], scoring, 1)).toBe(1500);
+  });
+
+  it('diagonal 3-tile = 500', () => {
+    expect(scoreLines([dLine(3)], scoring, 1)).toBe(500);
+  });
+
+  it('diagonal 4-tile = 1000', () => {
+    expect(scoreLines([dLine(4)], scoring, 1)).toBe(1000);
+  });
+
+  it('diagonal 5-tile = 1500', () => {
+    expect(scoreLines([dLine(5)], scoring, 1)).toBe(1500);
+  });
+
+  it('diagonal scores higher than horizontal (same 3-tile length)', () => {
+    expect(scoreLines([dLine(3)], scoring, 1)).toBeGreaterThan(scoreLines([hLine(3)], scoring, 1));
+  });
+
+  it('multi-KLUX: 2 simultaneous lines → sum × 2', () => {
+    const single = scoreLines([hLine(3)], scoring, 1); // 100
+    const multi  = scoreLines([hLine(3), hLine(3)], scoring, 1); // (100+100) × 2 = 400
+    expect(multi).toBe(single * 2 * 2);
   });
 
   it('chain step 1 → no multiplier', () => {
-    expect(scoreLines([hLine(3)], scoring, 1)).toBe(1000);
+    expect(scoreLines([hLine(3)], scoring, 1)).toBe(100);
   });
 
   it('chain step 2 → ×2 multiplier', () => {
-    expect(scoreLines([hLine(3)], scoring, 2)).toBe(2000);
+    expect(scoreLines([hLine(3)], scoring, 2)).toBe(200);
   });
 
   it('chain step 3 → ×3 multiplier', () => {
-    expect(scoreLines([hLine(3)], scoring, 3)).toBe(3000);
+    expect(scoreLines([hLine(3)], scoring, 3)).toBe(300);
   });
 
   it('returns 0 for empty lines array', () => {
