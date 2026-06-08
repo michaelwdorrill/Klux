@@ -1,6 +1,7 @@
 import type { GameState, GoalType } from '../core/types';
 import { computeLayout, type Layout } from './layout';
 import { drawTile, drawGhostTile, FILL_COLORS } from './tiles';
+import { Effects } from './effects';
 
 const BG = '#1a1a2e';
 const WELL_BG = '#16213e';
@@ -17,6 +18,8 @@ export class Renderer {
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
   private layout: Layout | null = null;
+  private readonly effects = new Effects();
+  private lastFrameMs = 0;
   debugMode = false;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -47,13 +50,27 @@ export class Renderer {
     const layout = this.layout;
     const ctx = this.ctx;
 
+    const now = performance.now();
+    const dtMs = this.lastFrameMs === 0 ? 16 : Math.min(64, now - this.lastFrameMs);
+    this.lastFrameMs = now;
+    this.effects.tick(dtMs, state.fx, layout, state.phase);
+
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, w, h);
 
+    // World layer (shaken)
+    const shake = this.effects.shakeOffset();
+    ctx.save();
+    ctx.translate(shake.x, shake.y);
     this.drawWell(state, layout);
     this.drawConveyor(state, layout, alpha);
     this.drawPaddle(state, layout);
+    this.effects.drawWorld(ctx);
+    ctx.restore();
+
+    // HUD + popups (steady)
     this.drawHud(state, layout, w, h);
+    this.effects.drawOverlay(ctx, w, h);
 
     if (state.phase !== 'playing') {
       this.drawOverlay(state, w, h, layout.cellSize);

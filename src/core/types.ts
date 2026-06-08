@@ -55,6 +55,7 @@ export type Phase = 'title' | 'playing' | 'waveClear' | 'paused' | 'gameOver';
 export interface KluxLine {
   tiles: Array<{ row: number; col: number }>;
   orientation: 'horizontal' | 'vertical' | 'diagonal';
+  color: Color;
 }
 
 export interface ClearEvent {
