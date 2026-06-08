@@ -72,8 +72,17 @@ npm test
 npm run build
 ```
 
+### Regenerate PWA icons
+```bash
+npm run icons
+```
+Outputs to `public/icons/` (192, 512, maskable 512, apple-touch 180, source SVG).
+
 ### Deploy (GitHub Pages)
-Push to `main` — GitHub Actions deploys automatically to `gh-pages`.
+Push to `main` — `.github/workflows/deploy.yml` runs tests, builds, and ships
+the `dist/` artifact to GitHub Pages via the official `actions/deploy-pages`
+flow. **One-time setup:** in the repo's *Settings → Pages*, set *Source* to
+*GitHub Actions*.
 
 ## Architecture
 
@@ -124,7 +133,7 @@ src/
 - [x] **Phase 7** — Audio (synthesized SFX)
 - [x] **Phase 8** — Polish FX (particles, screen shake, score popups, foul flash)
 - [x] **Phase 9** — UI screens + persistence (mode picker, per-mode high scores, persisted mute)
-- [ ] **Phase 10** — PWA + GitHub Pages deploy
+- [x] **Phase 10** — PWA + GitHub Pages deploy (icons, manifest, Workbox precache, CI workflow)
 - [ ] **Phase 11** — Perspective/pseudo-3D renderer (render-only swap; see §16 of SPEC.md)
 - [ ] **Phase 12** — Global leaderboard (Cloudflare Worker + D1; see §16 of SPEC.md)
 
