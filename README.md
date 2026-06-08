@@ -122,6 +122,7 @@ src/
 - [ ] **Phase 9** — UI screens + persistence
 - [ ] **Phase 10** — PWA + GitHub Pages deploy
 - [ ] **Phase 11** — Perspective/pseudo-3D renderer (render-only swap; see §16 of SPEC.md)
+- [ ] **Phase 12** — Global leaderboard (Cloudflare Worker + D1; see §16 of SPEC.md)
 
 ## Tech Stack
 

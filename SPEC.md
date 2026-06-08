@@ -593,7 +593,7 @@ Work strictly in this order. Each phase ends in a committable, runnable state.
 - Seeded "daily challenge" (the `rng` seed already supports this) + shareable result string.
 - Replay capture (record the `Command[]` + seed; the pure reducer makes replays exact).
 - Difficulty presets and an endless mode.
-- Online leaderboard (would introduce a backend — flag as a separate decision).
+- ~~Online leaderboard (would introduce a backend)~~ — see Phase 12 below.
 
 ### Phase 11 (planned): Perspective / pseudo-3D renderer
 
@@ -614,6 +614,64 @@ Plan:
 - Reference: the intro grid effect in *Trapped in the Phone* used a similar
   scrolling-from-horizon approach on canvas 2D and is a useful starting point for
   tuning the vanishing-point constants.
+
+### Phase 12 (planned): Global leaderboard — Cloudflare Worker + D1
+
+**Decision:** use a lightweight serverless backend so the game site stays on GitHub
+Pages (zero hosting cost) while scores are globally persistent. Chosen stack:
+
+| Piece | Service | Notes |
+|---|---|---|
+| API | Cloudflare Worker (free tier: 100k req/day) | ~50 lines of TypeScript |
+| Database | Cloudflare D1 (free tier: 5 GB, 25M row-reads/day) | SQLite at the edge |
+
+**Worker lives in a separate repo** (e.g. `klux-api`) and is deployed with
+`wrangler deploy`. The game site (this repo) calls it over HTTPS.
+
+#### API surface
+
+```
+POST /scores
+  Body: { name: string, score: number, wave: number, ts: number }
+  → 201 { id }
+
+GET  /scores/top?limit=100
+  → 200 { scores: [{ rank, name, score, wave, ts }] }
+
+GET  /scores/around?score=N&limit=10
+  → 200 { scores: [...] }   // your neighbours in the table
+```
+
+#### D1 schema
+
+```sql
+CREATE TABLE scores (
+  id      INTEGER PRIMARY KEY AUTOINCREMENT,
+  name    TEXT    NOT NULL CHECK(length(name) BETWEEN 1 AND 16),
+  score   INTEGER NOT NULL CHECK(score >= 0 AND score <= 9999999),
+  wave    INTEGER NOT NULL CHECK(wave >= 1),
+  ts      INTEGER NOT NULL  -- unix ms, client-supplied, sanity-checked server-side
+);
+CREATE INDEX idx_score ON scores(score DESC);
+```
+
+#### Light safeguards (sufficient for a small-audience game)
+
+- Server rejects `score > 9,999,999` or `wave > 99` (impossible in normal play).
+- Rate-limit by IP: max 3 score submissions per minute (Cloudflare built-in or a D1
+  counter). Stops automated flooding without requiring accounts.
+- Name is stripped of HTML/control chars server-side.
+- No account system, no auth — the goal is fun, not security theatre.
+
+#### Client integration
+
+- Add `submitScore(name, score, wave)` and `fetchLeaderboard()` to
+  `src/persistence/store.ts`. The same file already handles `localStorage`; the
+  network calls are just additional exports.
+- UI: after game-over, if the score qualifies (e.g. top 100 or personal best) prompt
+  for a 1–16 char name and call `submitScore`. Show a mini leaderboard on the title
+  screen fetched at startup (cached in memory, not localStorage).
+- The Worker URL is a single constant in `src/config.ts`; swap it per environment.
 
 ---
 
