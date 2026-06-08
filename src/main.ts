@@ -43,6 +43,7 @@ window.addEventListener('pointerdown', unlockAudio);
 
 // Load background music — put your Suno export at public/audio/theme.mp3
 audio.loadMusic('./audio/theme.mp3');
+audio.loadSfxFiles();
 
 // Backtick toggles debug overlay; M toggles mute
 window.addEventListener('keydown', (e) => {
