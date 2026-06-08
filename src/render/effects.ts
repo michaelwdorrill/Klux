@@ -271,7 +271,9 @@ export class Effects {
           : '#ffffff';
     const popupSize = Math.max(16, layout.cellSize * (isMulti || isChain ? 0.65 : 0.5));
 
-    let label = `+${ev.points.toLocaleString()}`;
+    let label = ev.points < 0
+      ? ev.points.toLocaleString()           // already has leading minus
+      : `+${ev.points.toLocaleString()}`;
     if (isChain) label = `×${ev.chainStep} CHAIN  ${label}`;
     else if (isMulti) label = `MULTI ×${ev.lines.length}  ${label}`;
     else if (biggest.orientation === 'diagonal') label = `DIAGONAL  ${label}`;
