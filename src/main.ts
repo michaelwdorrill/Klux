@@ -9,6 +9,7 @@ import { TouchAdapter } from './input/TouchAdapter';
 import { OnScreenControls } from './input/OnScreenControls';
 import { Audio } from './audio/Audio';
 import type { Command } from './core/commands';
+import { loadHighScores, recordScore, getMuted, setMuted } from './persistence/store';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const renderer = new Renderer(canvas);
@@ -47,10 +48,26 @@ audio.loadMusic('./audio/theme.mp3');
 audio.loadSfxFiles();
 renderer.getEffects().loadOwen('./images/owen.png');
 
-// Backtick toggles debug overlay; M toggles mute
+// Restore persisted mute preference + high scores
+if (getMuted()) audio.setMuted(true);
+let highScores = loadHighScores();
+renderer.setHighScores(highScores);
+
+onScreenControls.setMuteHandler(() => {
+  const muted = audio.toggleMute();
+  setMuted(muted);
+  return muted;
+});
+onScreenControls.setMuteState(audio.isMuted);
+
+// Backtick toggles debug overlay; M toggles mute (and persists)
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Backquote') renderer.debugMode = !renderer.debugMode;
-  if (e.code === 'KeyM') audio.toggleMute();
+  if (e.code === 'KeyM') {
+    const muted = audio.toggleMute();
+    setMuted(muted);
+    onScreenControls.setMuteState(muted);
+  }
 });
 
 const FIXED_MS = 1000 / 60;
@@ -105,6 +122,19 @@ function frame(now: number): void {
   // Play wave-clear jingle on transition
   if (state.phase === 'waveClear' && lastPhase === 'playing') {
     audio.sfxWaveClear();
+  }
+
+  // On game-over, record the score and flag a new best for the overlay
+  if (state.phase === 'gameOver' && lastPhase !== 'gameOver') {
+    const isNewBest = recordScore(state.mode, state.score);
+    renderer.setNewBest(isNewBest);
+    if (isNewBest) {
+      highScores = loadHighScores();
+      renderer.setHighScores(highScores);
+    }
+  }
+  if (state.phase === 'playing' && lastPhase !== 'playing') {
+    renderer.setNewBest(false);
   }
 
   // Per-frame SFX (catch + foul). Klux/Wow handled per-clear below.

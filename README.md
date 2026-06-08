@@ -123,7 +123,7 @@ src/
 - [x] **Phase 6** — Touch + on-screen controls
 - [x] **Phase 7** — Audio (synthesized SFX)
 - [x] **Phase 8** — Polish FX (particles, screen shake, score popups, foul flash)
-- [ ] **Phase 9** — UI screens + persistence
+- [x] **Phase 9** — UI screens + persistence (mode picker, per-mode high scores, persisted mute)
 - [ ] **Phase 10** — PWA + GitHub Pages deploy
 - [ ] **Phase 11** — Perspective/pseudo-3D renderer (render-only swap; see §16 of SPEC.md)
 - [ ] **Phase 12** — Global leaderboard (Cloudflare Worker + D1; see §16 of SPEC.md)

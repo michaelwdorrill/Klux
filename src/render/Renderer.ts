@@ -3,6 +3,7 @@ import { computeLayout, type Layout } from './layout';
 import { drawTile, drawGhostTile, FILL_COLORS } from './tiles';
 import { Effects } from './effects';
 import { getWave } from '../core/waves';
+import type { HighScores } from '../persistence/store';
 
 const BG = '#1a1a2e';
 const WELL_BG = '#16213e';
@@ -21,6 +22,8 @@ export class Renderer {
   private layout: Layout | null = null;
   private readonly effects = new Effects();
   private lastFrameMs = 0;
+  private highScores: HighScores = { classic: 0, endless: 0 };
+  private newBest = false;
   debugMode = false;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -91,6 +94,9 @@ export class Renderer {
   /** Expose Effects so main.ts can fire the easter egg. */
   getEffects(): Effects { return this.effects; }
 
+  setHighScores(h: HighScores): void { this.highScores = h; }
+  setNewBest(b: boolean): void { this.newBest = b; }
+
   private drawDebug(state: GameState, w: number): void {
     const { ctx } = this;
     const lines = [
@@ -131,22 +137,22 @@ export class Renderer {
     if (state.phase === 'title') {
       ctx.fillStyle = '#e0e0e0';
       ctx.font = `bold ${titleSize * 1.6}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('KLUX', cx, cy - titleSize * 1.4);
+      ctx.fillText('KLUX', cx, cy - titleSize * 1.6);
 
       ctx.fillStyle = 'rgba(200,200,220,0.8)';
       ctx.font = `${subSize}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('Pick a mode to play', cx, cy - subSize * 0.2);
+      ctx.fillText('Pick a mode to play', cx, cy - subSize * 0.6);
 
-      ctx.fillStyle = 'rgba(155,209,255,0.85)';
-      ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('CLASSIC — chase the wave goals', cx, cy + subSize * 1.0);
-      ctx.fillStyle = 'rgba(255,209,102,0.85)';
-      ctx.fillText('ENDLESS — survive as long as you can', cx, cy + subSize * 2.1);
+      ctx.fillStyle = 'rgba(155,209,255,0.9)';
+      ctx.font = `${subSize * 0.9}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText(`CLASSIC — chase the wave goals${bestSuffix(this.highScores.classic)}`, cx, cy + subSize * 0.6);
+      ctx.fillStyle = 'rgba(255,209,102,0.9)';
+      ctx.fillText(`ENDLESS — survive as long as you can${bestSuffix(this.highScores.endless)}`, cx, cy + subSize * 1.7);
 
       ctx.fillStyle = 'rgba(140,140,160,0.55)';
       ctx.font = `${subSize * 0.78}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('Tap a button below · keys 1 / 2 also work', cx, cy + subSize * 3.4);
-      ctx.fillText('Arrows / WASD · Space = drop · P = pause · M = mute', cx, cy + subSize * 4.3);
+      ctx.fillText('Tap a button below · keys 1 / 2 also work', cx, cy + subSize * 3.1);
+      ctx.fillText('Arrows / WASD · Space = drop · P = pause · M = mute', cx, cy + subSize * 4.0);
     }
 
     if (state.phase === 'paused') {
@@ -190,19 +196,30 @@ export class Renderer {
     if (state.phase === 'gameOver') {
       ctx.fillStyle = '#e63946';
       ctx.font = `bold ${titleSize}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('GAME OVER', cx, cy - subSize * 2.2);
+      ctx.fillText('GAME OVER', cx, cy - subSize * 3.0);
 
       ctx.fillStyle = '#e0e0e0';
       ctx.font = `${subSize}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText(`Final score: ${state.score.toLocaleString()}`, cx, cy - subSize * 0.6);
+      ctx.fillText(`Final score: ${state.score.toLocaleString()}`, cx, cy - subSize * 1.4);
 
-      ctx.fillStyle = 'rgba(200,200,220,0.7)';
+      if (this.newBest) {
+        ctx.fillStyle = '#ffd166';
+        ctx.font = `bold ${subSize * 1.05}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.fillText('★ NEW BEST! ★', cx, cy - subSize * 0.1);
+      } else {
+        const best = this.highScores[state.mode];
+        ctx.fillStyle = 'rgba(200,200,220,0.65)';
+        ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.fillText(`Best ${state.mode}: ${best.toLocaleString()}`, cx, cy - subSize * 0.1);
+      }
+
+      ctx.fillStyle = 'rgba(200,200,220,0.75)';
       ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('Tap CLASSIC or ENDLESS to play again', cx, cy + subSize * 1.1);
+      ctx.fillText('Tap CLASSIC or ENDLESS to play again', cx, cy + subSize * 1.4);
 
       ctx.fillStyle = 'rgba(140,140,160,0.5)';
       ctx.font = `${subSize * 0.75}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('or press 1 / 2 · Enter restarts same mode', cx, cy + subSize * 2.4);
+      ctx.fillText('or press 1 / 2 · Enter restarts same mode', cx, cy + subSize * 2.6);
     }
   }
 
@@ -421,7 +438,16 @@ export class Renderer {
       ctx.fillStyle = TEXT_PRIMARY;
       ctx.font = `bold ${fontSize + 4}px 'Segoe UI', system-ui, sans-serif`;
       ctx.fillText(`${state.score}`, cx, y);
-      y += fontSize + 14;
+      y += fontSize + 6;
+
+      const best = this.highScores[state.mode];
+      if (best > 0) {
+        ctx.fillStyle = state.score > best ? '#ffd166' : TEXT_DIM;
+        ctx.font = `${fontSize - 2}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.fillText(`best ${best.toLocaleString()}`, cx, y);
+        y += fontSize + 4;
+      }
+      y += 8;
 
       ctx.fillStyle = TEXT_DIM;
       ctx.font = `${fontSize - 1}px 'Segoe UI', system-ui, sans-serif`;
@@ -500,6 +526,10 @@ function goalText(state: GameState): string {
 
 function hudGoalText(state: GameState): string {
   return state.mode === 'endless' ? 'ENDLESS' : goalText(state);
+}
+
+function bestSuffix(score: number): string {
+  return score > 0 ? `  ·  best ${score.toLocaleString()}` : '';
 }
 
 function nextGoalText(wave: Wave): string {
