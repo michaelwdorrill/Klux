@@ -9,8 +9,8 @@ import type { Command } from './commands';
 
 let _nextId = 1;
 
-function newTile(color: number): Tile {
-  return { id: _nextId++, color };
+function newTile(color: number, type: Tile['type'] = 'normal'): Tile {
+  return { id: _nextId++, color, type };
 }
 
 /** The "speed tier" driving spawn cadence and music tempo. Classic uses the
@@ -22,15 +22,30 @@ export function speedTier(state: GameState): number {
 
 function spawnTile(state: GameState): GameState {
   const { config, rng } = state;
-  const tile = newTile(nextInt(rng, 0, config.colorCount));
+
+  // Determine tile type: wild > double > normal (roll in priority order)
+  const roll = Math.random();
+  const tileType: Tile['type'] =
+    roll < config.wildChance   ? 'wild'   :
+    roll < config.wildChance + config.doubleChance ? 'double' :
+    'normal';
+
+  const tile = newTile(nextInt(rng, 0, config.colorCount), tileType);
   const lane = nextInt(rng, 0, config.cols);
   const falling: FallingTile = { tile, lane, progress: 0 };
+
+  // Spawn tier for endless uses tiles-fed so speed ramps continuously,
+  // not just when KLUXes are made (which would stall for struggling players).
+  const tier = state.mode === 'endless'
+    ? Math.floor(state.tilesFedThisWave / 15)
+    : state.wave.index;
   const interval = spawnIntervalMs(
-    speedTier(state),
+    tier,
     config.baseSpawnMs,
     config.minSpawnMs,
-    config.spawnStepPerWave
+    config.spawnStepPerWave,
   );
+
   return {
     ...state,
     conveyor: [...state.conveyor, falling],

@@ -13,7 +13,7 @@ import { Audio } from './audio/Audio';
 import type { Command } from './core/commands';
 import { loadHighScores, recordScore, getMuted, setMuted } from './persistence/store';
 import { NameEntry } from './ui/NameEntry';
-import { postScore, getTopScores } from './leaderboard';
+import { postScore, getTopScores, type LeaderboardEntry } from './leaderboard';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const nameEntry = new NameEntry();
@@ -89,6 +89,18 @@ let last = performance.now();
 let waveClearEnteredAt: number | null = null;
 let lastSpeedTier = -1;
 let lastPhase = state.phase;
+let titleLeaderboardFetched = false;
+
+async function fetchTitleLeaderboard(): Promise<void> {
+  const [classic, endless] = await Promise.all([
+    getTopScores('classic', 5),
+    getTopScores('endless', 5),
+  ]);
+  renderer.setTitleLeaderboard({ classic, endless });
+}
+
+// Pre-fetch on load so the title screen shows it immediately
+fetchTitleLeaderboard().catch(() => {});
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && state.phase === 'playing') {
@@ -156,14 +168,26 @@ function frame(now: number): void {
     nameEntry.show(async (name) => {
       nameEntry.hide();
       await postScore(capturedMode, name, capturedScore, capturedWave);
-      const entries = await getTopScores(capturedMode, 10);
+      const [entries, c, e] = await Promise.all([
+        getTopScores(capturedMode, 10),
+        getTopScores('classic', 5),
+        getTopScores('endless', 5),
+      ]) as [LeaderboardEntry[], LeaderboardEntry[], LeaderboardEntry[]];
       renderer.setLeaderboard(entries, capturedScore);
+      renderer.setTitleLeaderboard({ classic: c, endless: e });
     });
   }
   if (state.phase === 'playing' && lastPhase !== 'playing') {
     renderer.setNewBest(false);
     renderer.setLeaderboard(null);
     nameEntry.hide();
+  }
+  if (state.phase === 'title' && lastPhase !== 'title') {
+    if (!titleLeaderboardFetched) {
+      titleLeaderboardFetched = true;
+    } else {
+      fetchTitleLeaderboard().catch(() => {});
+    }
   }
 
   // Per-frame SFX (catch + foul). Klux/Wow handled per-clear below.

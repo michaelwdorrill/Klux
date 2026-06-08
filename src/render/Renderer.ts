@@ -29,6 +29,7 @@ export class Renderer {
   private newBest = false;
   private leaderboard: LeaderboardEntry[] | null = null;
   private leaderboardPlayerScore = 0;
+  private titleLeaderboard: { classic: LeaderboardEntry[]; endless: LeaderboardEntry[] } | null = null;
   debugMode = false;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -121,8 +122,12 @@ export class Renderer {
   setHighScores(h: HighScores): void { this.highScores = h; }
   setNewBest(b: boolean): void { this.newBest = b; }
   setLeaderboard(entries: LeaderboardEntry[] | null, playerScore = 0): void {
-    this.leaderboard       = entries;
+    this.leaderboard            = entries;
     this.leaderboardPlayerScore = playerScore;
+  }
+
+  setTitleLeaderboard(data: { classic: LeaderboardEntry[]; endless: LeaderboardEntry[] } | null): void {
+    this.titleLeaderboard = data;
   }
 
   private drawDebug(state: GameState, w: number): void {
@@ -181,6 +186,14 @@ export class Renderer {
       ctx.font = `${subSize * 0.78}px 'Segoe UI', system-ui, sans-serif`;
       ctx.fillText('Tap a button below · keys 1 / 2 also work', cx, cy + subSize * 3.1);
       ctx.fillText('Arrows / WASD · Space = drop · P = pause · M = mute', cx, cy + subSize * 4.0);
+
+      // Global leaderboards: two compact columns below the controls hint
+      if (this.titleLeaderboard) {
+        const lbY = cy + subSize * 5.4;
+        const halfW = Math.min(160, w * 0.38);
+        this.drawMiniLeaderboard(ctx, cx - halfW * 0.55, lbY, halfW, subSize, 'CLASSIC', this.titleLeaderboard.classic);
+        this.drawMiniLeaderboard(ctx, cx + halfW * 0.55, lbY, halfW, subSize, 'ENDLESS', this.titleLeaderboard.endless);
+      }
     }
 
     if (state.phase === 'paused') {
@@ -249,10 +262,17 @@ export class Renderer {
         ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
         ctx.fillText('Tap CLASSIC or ENDLESS to play again', cx, cy + subSize * 1.4);
       } else {
-        // waiting for name entry — show hint
-        ctx.fillStyle = 'rgba(200,200,220,0.55)';
-        ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
-        ctx.fillText('Enter your initials above to submit your score', cx, cy + subSize * 1.4);
+        // waiting for name entry — show existing global leaderboard so the
+        // player knows what they're shooting for before they submit
+        const tl = this.titleLeaderboard;
+        const modeBoard = tl ? tl[state.mode] : null;
+        if (modeBoard && modeBoard.length > 0) {
+          this.drawLeaderboardPanel(ctx, cx, cy + subSize * 1.0, subSize, w, modeBoard, -1);
+        } else {
+          ctx.fillStyle = 'rgba(200,200,220,0.55)';
+          ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
+          ctx.fillText('Enter your initials above to submit your score', cx, cy + subSize * 1.4);
+        }
       }
 
       if (this.leaderboard !== null) {
@@ -264,6 +284,53 @@ export class Renderer {
         ctx.fillText('or press 1 / 2 · Enter restarts same mode', cx, h - subSize * 1.1);
       }
     }
+  }
+
+  private drawMiniLeaderboard(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    topY: number,
+    panelW: number,
+    subSize: number,
+    label: string,
+    entries: LeaderboardEntry[],
+  ): void {
+    const rowH   = subSize * 1.35;
+    const rows   = Math.min(5, entries.length);
+    const panelH = rowH * (rows + 1) + 6;
+    const px     = cx - panelW / 2;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(10,14,28,0.72)';
+    ctx.beginPath();
+    ctx.roundRect(px, topY, panelW, panelH, 6);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(155,209,255,0.7)';
+    ctx.font = `bold ${subSize * 0.75}px 'Segoe UI', system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, cx, topY + rowH * 0.5);
+
+    for (let i = 0; i < rows; i++) {
+      const e  = entries[i];
+      const ry = topY + rowH * (i + 1) + 4;
+      const rankColor = i === 0 ? '#ffd700' : i === 1 ? '#c0c0c0' : i === 2 ? '#cd7f32' : 'rgba(200,200,220,0.7)';
+      ctx.fillStyle = rankColor;
+      ctx.font = `${subSize * 0.75}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText(`${i + 1}. ${e.name}`, px + 8, ry);
+      ctx.textAlign = 'right';
+      ctx.fillText(e.score.toLocaleString(), px + panelW - 8, ry);
+    }
+
+    if (entries.length === 0) {
+      ctx.fillStyle = 'rgba(140,140,160,0.5)';
+      ctx.font = `${subSize * 0.72}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('no scores yet', cx, topY + rowH * 1.5);
+    }
+    ctx.restore();
   }
 
   private drawLeaderboardPanel(
@@ -346,7 +413,7 @@ export class Renderer {
         const targetX = wellOrigin.x + col * cellSize;
         const targetY = wellOrigin.y + (rows - 1 - row) * cellSize;
         const { x, y } = this.effects.getTileDrawPosition(tile.id, targetX, targetY);
-        drawTile(ctx, x, y, cellSize, tile.color);
+        drawTile(ctx, x, y, cellSize, tile.color, 1, 1, tile.type);
       }
     }
 
@@ -391,7 +458,7 @@ export class Renderer {
       const interpolatedProgress = Math.min(1, ft.progress + (alpha * 0.016) / 3);
       const x = conveyorOrigin.x + ft.lane * cellSize;
       const y = conveyorOrigin.y + interpolatedProgress * travelPx - cellSize;
-      drawTile(ctx, x, y, cellSize, ft.tile.color);
+      drawTile(ctx, x, y, cellSize, ft.tile.color, 1, 1, ft.tile.type);
     }
   }
 
@@ -416,7 +483,7 @@ export class Renderer {
     // Show the TOP tile of the stack on the paddle bar
     if (state.paddle.length > 0) {
       const top = state.paddle[state.paddle.length - 1];
-      drawTile(ctx, activeX, paddleOrigin.y, cellSize, top.color);
+      drawTile(ctx, activeX, paddleOrigin.y, cellSize, top.color, 1, 1, top.type);
 
       // Stack indicator: a row of color dots at the bottom of the active cell.
       // Left = bottom of stack, right = top (next to drop, marked with white ring).
@@ -483,7 +550,7 @@ export class Renderer {
       for (let i = stack.length - 1; i >= 0; i--) {
         const slot = stack.length - 1 - i;
         const ty = stackY + slot * (stackCellSize + gap);
-        drawTile(ctx, stackX, ty, stackCellSize, stack[i].color, 1, 0.9);
+        drawTile(ctx, stackX, ty, stackCellSize, stack[i].color, 1, 0.9, stack[i].type);
       }
       ctx.restore();
     } else {
@@ -603,7 +670,7 @@ export class Renderer {
         const gap = 4;
         for (let i = state.paddle.length - 1; i >= 0; i--) {
           const slot = state.paddle.length - 1 - i;
-          drawTile(ctx, cx - sc / 2, y + slot * (sc + gap), sc, state.paddle[i].color, 1, 0.9);
+          drawTile(ctx, cx - sc / 2, y + slot * (sc + gap), sc, state.paddle[i].color, 1, 0.9, state.paddle[i].type);
         }
       }
     }
