@@ -1,11 +1,20 @@
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { execSync } from 'child_process'
+
+function gitShortSha(): string {
+  try {
+    return execSync('git rev-parse --short HEAD').toString().trim();
+  } catch {
+    return 'dev';
+  }
+}
 
 export default defineConfig({
   base: '/',
   define: {
-    // Injected at build time so the deployed page always shows when it was built.
-    __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
+    // Short commit SHA so every build — including same-day deploys — is uniquely identified.
+    __BUILD_SHA__: JSON.stringify(gitShortSha()),
   },
   plugins: [
     VitePWA({

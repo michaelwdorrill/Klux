@@ -20,12 +20,11 @@ export const DEFAULT_CONFIG: GameConfig = {
   minSpawnMs: 700,      // floor: about one tile every 0.7s on late waves
   spawnStepPerWave: 80, // gentler — wave 5 ≈ 1800ms, wave 10 ≈ 1400ms, wave 20 ≈ 700ms
 
+  // Klax arcade manual values: [3-tile, 4-tile, 5-tile]
   scoring: {
-    horizontal: 1000,
-    vertical: 1000,
-    diagonal: 5000,
-    extraTile: 1000,
-    bigKluxBonus: 5000,
+    vertical:         [50,  1000, 1500],
+    horizontal:       [100,  500, 1000],
+    diagonal:         [500, 1000, 1500],
     waveClearPerDrop: 1000,
   },
 };
