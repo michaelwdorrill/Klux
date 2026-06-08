@@ -53,6 +53,69 @@ export class Renderer {
     this.drawConveyor(state, layout, alpha);
     this.drawPaddle(state, layout);
     this.drawHud(state, layout, w, h);
+
+    if (state.phase !== 'playing') {
+      this.drawOverlay(state, w, h, layout.cellSize);
+    }
+  }
+
+  drawOverlay(state: GameState, w: number, h: number, cellSize: number): void {
+    const { ctx } = this;
+    const cx = w / 2;
+    const cy = h / 2;
+    const titleSize = Math.max(18, Math.min(36, cellSize * 0.7));
+    const subSize = Math.max(12, Math.min(18, cellSize * 0.36));
+
+    ctx.fillStyle = 'rgba(10,12,24,0.82)';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    if (state.phase === 'title') {
+      ctx.fillStyle = '#e0e0e0';
+      ctx.font = `bold ${titleSize * 1.6}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('KLUX', cx, cy - titleSize * 1.2);
+      ctx.font = `${subSize}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillStyle = 'rgba(200,200,220,0.8)';
+      ctx.fillText('Press Enter to play', cx, cy);
+      ctx.fillStyle = 'rgba(140,140,160,0.6)';
+      ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('Arrow keys / WASD  ·  Space = drop  ·  P = pause', cx, cy + subSize * 1.8);
+    }
+
+    if (state.phase === 'paused') {
+      ctx.fillStyle = '#e0e0e0';
+      ctx.font = `bold ${titleSize}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('PAUSED', cx, cy - subSize);
+      ctx.fillStyle = 'rgba(200,200,220,0.7)';
+      ctx.font = `${subSize}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('Press P or Enter to resume', cx, cy + subSize);
+    }
+
+    if (state.phase === 'waveClear') {
+      ctx.fillStyle = '#06d6a0';
+      ctx.font = `bold ${titleSize}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('WAVE CLEAR!', cx, cy - subSize * 1.5);
+      ctx.fillStyle = '#e0e0e0';
+      ctx.font = `${subSize}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText(`Score: ${state.score}`, cx, cy + subSize * 0.2);
+      ctx.fillStyle = 'rgba(200,200,220,0.7)';
+      ctx.font = `${subSize * 0.9}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('Press Enter for next wave', cx, cy + subSize * 1.8);
+    }
+
+    if (state.phase === 'gameOver') {
+      ctx.fillStyle = '#e63946';
+      ctx.font = `bold ${titleSize}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('GAME OVER', cx, cy - subSize * 1.5);
+      ctx.fillStyle = '#e0e0e0';
+      ctx.font = `${subSize}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText(`Final score: ${state.score}`, cx, cy + subSize * 0.2);
+      ctx.fillStyle = 'rgba(200,200,220,0.7)';
+      ctx.font = `${subSize * 0.9}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('Press Enter to play again', cx, cy + subSize * 1.8);
+    }
   }
 
   private drawWell(state: GameState, layout: Layout): void {
