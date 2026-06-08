@@ -53,19 +53,14 @@ function projX(vpX: number, flatX: number, s: number): number {
 }
 
 /**
- * Perspective-correct y for a tile's top-left at conveyor progress p.
+ * Project a y-coordinate from the vanishing point (vpY) toward a near target.
  *
- * Uses the inverse-scale (1/s) relationship so that equal depth increments
- * produce perspective-foreshortened y increments — tiles bunch near the top.
- *
- * topY   — y of the conveyor's top edge (far)
- * nearY  — y of the tile's top when fully near (= lipY - cellSize)
+ * For tiles to travel in a straight line, both x and y must be driven by the
+ * same s(p): x = vpX + Δx·s, y = vpY + Δy·s.
+ * vpY = topY (top of conveyor = where all lanes converge).
  */
-function perspTileTopY(topY: number, nearY: number, p: number): number {
-  const s = perspScale(p);
-  // normDepth: 0 at lip (near), 1 at top (far)
-  const normDepth = (1 / s - 1) / (1 / FAR_SCALE - 1);
-  return nearY + (topY - nearY) * normDepth;
+function projY(vpY: number, nearY: number, s: number): number {
+  return vpY + (nearY - vpY) * s;
 }
 
 // ── Renderer3D ─────────────────────────────────────────────────────────────────
@@ -118,15 +113,17 @@ export class Renderer3D extends Renderer {
     }
 
     // ── Perspective horizontal depth grid lines ────────────────────────────
-    // Placed at evenly-spaced progress values → they bunch toward the far end
+    // Grid lines mark tile-row boundaries. They use projY so they align with
+    // the same perspective math as the tiles.
     for (let i = 1; i < conveyorRows; i++) {
       const p = i / conveyorRows;
       const s = perspScale(p);
-      const lineY = perspTileTopY(topY, nearTileTopY, p);
+      // Bottom edge of the tile-row at this progress = same formula as tile bottom
+      const lineY = projY(topY, lipY, s);
       ctx.strokeStyle = DEPTH_LINE;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(projX(vpX, pfX, s),      lineY);
+      ctx.moveTo(projX(vpX, pfX,       s), lineY);
       ctx.lineTo(projX(vpX, pfX + pfW, s), lineY);
       ctx.stroke();
     }
@@ -164,10 +161,10 @@ export class Renderer3D extends Renderer {
       const s = perspScale(p);
       const tileSize = cellSize * s;
 
-      const flatCX  = pfX + (ft.lane + 0.5) * cellSize;
-      const projCX  = projX(vpX, flatCX, s);
-      const tx = projCX - tileSize / 2;
-      const ty = perspTileTopY(topY, nearTileTopY, p);
+      const flatCX = pfX + (ft.lane + 0.5) * cellSize;
+      const tx = projX(vpX, flatCX, s) - tileSize / 2;
+      // y projects from the same VP as x → straight-line paths down each lane
+      const ty = projY(topY, nearTileTopY, s);
 
       drawTile(ctx, tx, ty, tileSize, ft.tile.color);
     }
