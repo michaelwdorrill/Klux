@@ -178,10 +178,14 @@ const TUT_HOLD_MS = 3000;
 function tutMessage(step: TutStep): string {
   const mobile = isTouchLike();
   switch (step) {
-    case 1: return mobile ? 'Tap a lane to catch a tile' : 'Move with ← → and catch a tile\non your paddle';
-    case 2: return mobile ? 'Tap your lane to drop\na tile into the well' : 'Press Space (or ↓) to drop\na tile into the well';
+    case 1: return mobile
+      ? 'Tap a lane to catch a tile'
+      : 'Hover a lane (or use ← →) to move\nthen catch a tile on your paddle';
+    case 2: return mobile
+      ? 'Tap your lane to drop\na tile into the well'
+      : 'Click (or press Space / ↓) to drop\na tile into the well';
     case 3: return 'Place 3 matching tiles\nin a row for a KLUX!';
-    case 4: return 'Horizontals score most points';
+    case 4: return 'Horizontal KLUXes score more\nthan vertical ones';
     case 5: return 'Diagonals beat horizontals!';
     case 6: return 'Good luck!';
     default: return '';
@@ -353,13 +357,6 @@ function frame(now: number): void {
     renderer.setNewBest(false);
     renderer.setLeaderboard(null);
     nameEntry.hide();
-    // Reset tutorial if it was completed but we're doing a fresh first-play check
-    if (!getTutorialDone() && state.mode !== 'versus') {
-      tutStep = 1 as TutStep;
-      tutAlpha = 0;
-      tutFadeDir = 1;
-      tutHoldMs = 0;
-    }
   }
   if (state.phase === 'title' && lastPhase !== 'title') {
     // Clean up VS session if quitting mid-game
