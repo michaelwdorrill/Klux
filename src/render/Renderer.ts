@@ -94,7 +94,7 @@ export class Renderer {
     this.drawHud(state, layout, w, h);
 
     // VS opponent panel — always on top of HUD, below pause/game-over overlays
-    if (state.mode === 'versus' && this.opponentWell.length > 0) {
+    if (state.mode === 'versus' && state.phase === 'playing') {
       drawOpponentPanel(ctx, layout, w, this.opponentWell, this.opponentDrops, this.opponentPower, state.config.maxDrops);
     }
 
@@ -753,42 +753,56 @@ function drawOpponentPanel(
   const cols = opponentWell[0]?.length ?? 5;
 
   const panelPad = 6;
+  const hasData = opponentWell.length > 0;
   const cellW = 9;
   const cellH = 10;
-  const boardW = cols * cellW;
-  const boardH = rows * cellH;
+  const boardW = (hasData ? cols : 5) * cellW;
+  const boardH = (hasData ? rows : 10) * cellH;
   const powerBarH = 5;
   const labelH = 12;
   const dropH = 8;
   const panelW = boardW + panelPad * 2;
-  const panelH = labelH + 4 + boardH + 4 + powerBarH + 4 + dropH + panelPad;
+  const panelH = hasData
+    ? labelH + 4 + boardH + 4 + powerBarH + 4 + dropH + panelPad
+    : labelH + 4 + 24 + panelPad;
 
-  // Position: top-right of conveyor area
-  const px = layout.conveyorOrigin.x + layout.cellSize * layout.cols + 6;
-  const clampedX = Math.min(px, canvasW - panelW - 4);
-  const py = layout.conveyorOrigin.y + 4;
+  // Position: to the LEFT of the playfield so it's never behind the HUD
+  const px = layout.conveyorOrigin.x - panelW - 6;
+  // If there's no room on the left (portrait or narrow canvas), fall back to top-right of conveyor
+  const fitsLeft = px >= 4;
+  const panelX = fitsLeft
+    ? px
+    : Math.min(layout.conveyorOrigin.x + layout.cellSize * layout.cols + 6, canvasW - panelW - 4);
+  const panelY = layout.conveyorOrigin.y + 4;
 
   // Panel background
-  ctx.fillStyle = 'rgba(10,12,28,0.82)';
+  ctx.fillStyle = 'rgba(10,12,28,0.88)';
   ctx.beginPath();
-  ctx.roundRect(clampedX, py, panelW, panelH, 6);
+  ctx.roundRect(panelX, panelY, panelW, panelH, 6);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(155,209,255,0.25)';
+  ctx.strokeStyle = 'rgba(155,209,255,0.3)';
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  let y = py + panelPad / 2;
+  let y = panelY + panelPad / 2;
 
   // Label
-  ctx.fillStyle = 'rgba(155,209,255,0.75)';
+  ctx.fillStyle = 'rgba(155,209,255,0.9)';
   ctx.font = `bold 9px 'Segoe UI', system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.fillText('OPPONENT', clampedX + panelW / 2, y);
+  ctx.fillText('OPPONENT', panelX + panelW / 2, y);
   y += labelH + 2;
 
+  if (!hasData) {
+    ctx.fillStyle = 'rgba(180,180,200,0.4)';
+    ctx.font = `8px 'Segoe UI', system-ui, sans-serif`;
+    ctx.fillText('waiting…', panelX + panelW / 2, y + 4);
+    return;
+  }
+
   // Mini board
-  drawMiniBoard(ctx, clampedX + panelPad, y, cellW, cellH, opponentWell, opponentDrops, maxDrops, 9);
+  drawMiniBoard(ctx, panelX + panelPad, y, cellW, cellH, opponentWell, opponentDrops, maxDrops, 9);
   y += boardH + 4;
 
   // Opponent power bar
@@ -797,17 +811,17 @@ function drawOpponentPanel(
   const oppLevel = opponentPower >= 6000 ? 4 : opponentPower >= 4500 ? 3 : opponentPower >= 3000 ? 2 : opponentPower >= 1500 ? 1 : 0;
   const barColor = oppLevel >= 4 ? '#ef476f' : oppLevel >= 3 ? '#ffd166' : oppLevel >= 2 ? '#f4a261' : oppLevel >= 1 ? '#06d6a0' : '#4a90d9';
   ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  ctx.beginPath(); ctx.roundRect(clampedX + panelPad, y, boardW, powerBarH, 2); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(panelX + panelPad, y, boardW, powerBarH, 2); ctx.fill();
   if (powerFill > 0) {
     ctx.fillStyle = barColor;
-    ctx.beginPath(); ctx.roundRect(clampedX + panelPad, y, boardW * powerFill, powerBarH, 2); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(panelX + panelPad, y, boardW * powerFill, powerBarH, 2); ctx.fill();
   }
   if (oppLevel > 0) {
     ctx.fillStyle = barColor;
     ctx.font = `bold 8px 'Segoe UI', system-ui, sans-serif`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`⚡${oppLevel}`, clampedX + panelW - panelPad / 2, y + powerBarH / 2);
+    ctx.fillText(`⚡${oppLevel}`, panelX + panelW - panelPad / 2, y + powerBarH / 2);
   }
 }
 
