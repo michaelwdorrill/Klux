@@ -58,7 +58,11 @@ navigator.serviceWorker?.addEventListener('controllerchange', () => window.locat
 // Unlock AudioContext on first gesture (browser autoplay policy)
 const unlockAudio = () => audio.unlock();
 window.addEventListener('keydown', unlockAudio);
-window.addEventListener('pointerdown', unlockAudio);
+window.addEventListener('pointerdown', (e) => {
+  unlockAudio();
+  // Dismiss How to Play on any canvas tap
+  if (e.target === canvas) renderer.setShowHowToPlay(false);
+});
 
 // Load background music — put your Suno export at public/audio/theme.mp3
 audio.loadMusic('./audio/theme.mp3');
@@ -95,9 +99,15 @@ function wireVsEvents(): void {
       input.inject({ type: 'VS_WIN' });
       vsClient.stopPolling();
     } else if (ev.type === 'disconnect') {
+      renderer.setVsDisconnectWin(true);
       input.inject({ type: 'VS_WIN' });
       vsClient.stopPolling();
     }
+  };
+  vsClient.onStaleDisconnect = () => {
+    renderer.setVsDisconnectWin(true);
+    input.inject({ type: 'VS_WIN' });
+    vsClient.stopPolling();
   };
 }
 wireVsEvents();
@@ -112,11 +122,12 @@ onScreenControls.setVsHandler(() => {
     if (state.phase !== 'title' && state.phase !== 'gameOver') {
       state = { ...state, phase: 'gameOver' };
     }
+    renderer.setVsDisconnectWin(false);
     input.inject({ type: 'START_VS', seed });
   });
 });
 
-// Backtick toggles debug overlay; F fires VS power; Ctrl+D toggles auto-play bot
+// Backtick toggles debug overlay; F fires VS power; Ctrl+D toggles auto-play bot; ? = how to play
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Backquote') renderer.debugMode = !renderer.debugMode;
   if (e.code === 'KeyD' && e.ctrlKey) {
@@ -126,6 +137,7 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyF' && state.mode === 'versus' && state.phase === 'playing') {
     input.inject({ type: 'FIRE_POWER' });
   }
+  if (e.key === '?') renderer.toggleHowToPlay();
 });
 
 window.addEventListener('beforeunload', () => {
