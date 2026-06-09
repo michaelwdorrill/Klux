@@ -21,6 +21,9 @@ export class VsClient {
   /** Total board events received — shown on opponent panel for debugging. */
   boardEventCount = 0;
 
+  /** Opponent's display name — set from 'ready' events. */
+  opponentName = '';
+
   /** Called for every non-board event that arrives from the opponent. */
   onEvent: (ev: VsEvent) => void = () => {};
   /** Called when no opponent events arrive for ~8 s after the first board sync. */
@@ -68,6 +71,10 @@ export class VsClient {
     this.postEvent('board', { well, drops, power });
   }
 
+  sendReady(name: string, difficulty: string): void {
+    this.postEvent('ready', { name, difficulty });
+  }
+
   startPolling(): void {
     if (this.pollTimer !== null) return;
     this.pollTimer = setInterval(() => { this.poll().catch(() => {}); }, 1000);
@@ -88,6 +95,7 @@ export class VsClient {
     this.boardEventCount = 0;
     this.lastOpponentEventAt = 0;
     this.stalePollCount = 0;
+    this.opponentName = '';
   }
 
   private async poll(): Promise<void> {
@@ -110,6 +118,10 @@ export class VsClient {
         this.opponentDrops = typeof p.drops === 'number' ? p.drops : -1;
         this.opponentPower = p.power ?? 0;
         this.boardEventCount++;
+      } else if (ev.type === 'ready') {
+        const p = ev.payload as { name?: string; difficulty?: string };
+        if (p.name) this.opponentName = p.name;
+        this.onEvent(ev);
       } else {
         this.onEvent(ev);
       }

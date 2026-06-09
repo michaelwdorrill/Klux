@@ -1,8 +1,10 @@
 import type { GameMode } from '../core/types';
+import type { Difficulty } from '../core/types';
 
 // localStorage namespace. Bumping the version drops old keys cleanly.
 const NS = 'klux.v1.';
-const keyHigh = (mode: GameMode) => `${NS}highScore.${mode}`;
+const keyHigh = (mode: GameMode, difficulty: Difficulty = 'normal') =>
+  difficulty === 'normal' ? `${NS}highScore.${mode}` : `${NS}highScore.${mode}.${difficulty}`;
 const KEY_MUTED = `${NS}muted`;
 
 function safeGet(key: string): string | null {
@@ -13,18 +15,18 @@ function safeSet(key: string, value: string): void {
   try { localStorage.setItem(key, value); } catch { /* private mode / quota */ }
 }
 
-export function getHighScore(mode: GameMode): number {
-  const raw = safeGet(keyHigh(mode));
+export function getHighScore(mode: GameMode, difficulty: Difficulty = 'normal'): number {
+  const raw = safeGet(keyHigh(mode, difficulty));
   if (!raw) return 0;
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 /** Persist `score` if it beats the existing record. Returns true on new best. */
-export function recordScore(mode: GameMode, score: number): boolean {
-  const current = getHighScore(mode);
+export function recordScore(mode: GameMode, difficulty: Difficulty, score: number): boolean {
+  const current = getHighScore(mode, difficulty);
   if (score > current) {
-    safeSet(keyHigh(mode), String(score));
+    safeSet(keyHigh(mode, difficulty), String(score));
     return true;
   }
   return false;

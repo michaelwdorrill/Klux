@@ -1,7 +1,7 @@
 import { DEFAULT_CONFIG } from './config';
 import { startGame, step } from './core/game';
 import { spawnIntervalMs } from './core/waves';
-import type { GameState } from './core/types';
+import type { GameState, Difficulty } from './core/types';
 import { Renderer } from './render/Renderer';
 import { Renderer3D } from './render/Renderer3D';
 import { InputManager } from './input/InputManager';
@@ -11,9 +11,9 @@ import { PointerAdapter } from './input/PointerAdapter';
 import { OnScreenControls } from './input/OnScreenControls';
 import { Audio } from './audio/Audio';
 import type { Command } from './core/commands';
-import { loadHighScores, recordScore, getMuted, setMuted, getTutorialDone, setTutorialDone } from './persistence/store';
+import { loadHighScores, getHighScore, recordScore, getMuted, setMuted, getTutorialDone, setTutorialDone } from './persistence/store';
 import { NameEntry } from './ui/NameEntry';
-import { postScore, getTopScores, type LeaderboardEntry } from './leaderboard';
+import { postScore, getTopScores, leaderboardKey, type LeaderboardEntry } from './leaderboard';
 import { VsLobby } from './ui/VsLobby';
 import { AutoPlayer } from './debug/AutoPlayer';
 
@@ -84,6 +84,10 @@ onScreenControls.setHowToPlayHandler(() => renderer.toggleHowToPlay());
 
 const vsClient = vsLobby.getClient();
 
+// VS intro state
+const VS_INTRO_MS = 3000;
+let vsIntroState: { seed: number; ourName: string; opponentName: string; difficulty: Difficulty; countdownMs: number } | null = null;
+
 function wireVsEvents(): void {
   vsClient.onEvent = (ev) => {
     if (ev.type === 'power') {
@@ -103,6 +107,15 @@ function wireVsEvents(): void {
       renderer.setVsDisconnectWin(true);
       input.inject({ type: 'VS_WIN' });
       vsClient.stopPolling();
+    } else if (ev.type === 'ready') {
+      // opponentName updated in VsClient.poll; difficulty override for player B
+      if (vsIntroState) {
+        vsIntroState.opponentName = vsClient.opponentName;
+        const p = ev.payload as { difficulty?: string };
+        if (p.difficulty && vsIntroState.difficulty === 'normal') {
+          vsIntroState.difficulty = p.difficulty as Difficulty;
+        }
+      }
     }
   };
   vsClient.onStaleDisconnect = () => {
@@ -114,17 +127,16 @@ function wireVsEvents(): void {
 wireVsEvents();
 
 onScreenControls.setVsHandler(() => {
-  vsLobby.show((matchId, seed, player) => {
+  vsLobby.show((matchId, seed, player, difficulty, myName) => {
     vsClient.matchId = matchId;
     vsClient.player  = player;
     wireVsEvents();          // restore handler after lobby overwrites it
     vsClient.startPolling();
-    // Force state to title first so START_VS is always accepted from any phase
-    if (state.phase !== 'title' && state.phase !== 'gameOver') {
-      state = { ...state, phase: 'gameOver' };
-    }
     renderer.setVsDisconnectWin(false);
-    input.inject({ type: 'START_VS', seed, difficulty: 'normal' });
+    vsClient.sendReady(myName, difficulty);
+    // Start intro countdown — game will start after it finishes
+    vsIntroState = { seed, difficulty, ourName: myName, opponentName: '', countdownMs: VS_INTRO_MS };
+    renderer.setVsIntro(vsIntroState);
   });
 });
 
@@ -259,6 +271,23 @@ function frame(now: number): void {
   acc += frameDt;
   last = now;
 
+  // VS intro countdown — delay game start until countdown finishes
+  if (vsIntroState) {
+    vsIntroState.countdownMs -= frameDt;
+    vsIntroState.opponentName = vsClient.opponentName;
+    renderer.setVsIntro({ ...vsIntroState });
+    if (vsIntroState.countdownMs <= 0) {
+      const { seed, difficulty } = vsIntroState;
+      vsIntroState = null;
+      renderer.setVsIntro(null);
+      // Force state so START_VS is accepted
+      if (state.phase !== 'title' && state.phase !== 'gameOver') {
+        state = { ...state, phase: 'gameOver' };
+      }
+      input.inject({ type: 'START_VS', seed, difficulty });
+    }
+  }
+
   const extraCmds: Command[] = [];
   if (state.phase === 'waveClear') {
     if (waveClearEnteredAt === null) waveClearEnteredAt = now;
@@ -337,21 +366,27 @@ function frame(now: number): void {
       renderer.setNewBest(false);
       renderer.setLeaderboard(null);
     } else {
-      const isNewBest = recordScore(state.mode, state.score);
+      const diff = state.config.difficulty;
+      const isNewBest = recordScore(state.mode, diff, state.score);
       renderer.setNewBest(isNewBest);
       renderer.setLeaderboard(null);
       if (isNewBest) {
-        highScores = loadHighScores();
+        highScores = {
+          classic: getHighScore('classic', diff),
+          endless: getHighScore('endless', diff),
+        };
         renderer.setHighScores(highScores);
       }
       const capturedMode  = state.mode;
       const capturedScore = state.score;
       const capturedWave  = state.wave.index + 1;
+      const capturedDiff  = diff;
       nameEntry.show(async (name) => {
         nameEntry.hide();
-        await postScore(capturedMode, name, capturedScore, capturedWave);
+        const lbMode = leaderboardKey(capturedMode, capturedDiff);
+        await postScore(lbMode, name, capturedScore, capturedWave);
         const [entries, c, e] = await Promise.all([
-          getTopScores(capturedMode, 10),
+          getTopScores(lbMode, 10),
           getTopScores('classic', 5),
           getTopScores('endless', 5),
         ]) as [LeaderboardEntry[], LeaderboardEntry[], LeaderboardEntry[]];
@@ -364,6 +399,13 @@ function frame(now: number): void {
     renderer.setNewBest(false);
     renderer.setLeaderboard(null);
     nameEntry.hide();
+    // Update high scores display for the current difficulty
+    const diff = state.config.difficulty;
+    highScores = {
+      classic: getHighScore('classic', diff),
+      endless: getHighScore('endless', diff),
+    };
+    renderer.setHighScores(highScores);
   }
   if (state.phase === 'title' && lastPhase !== 'title') {
     // Clean up VS session if quitting mid-game

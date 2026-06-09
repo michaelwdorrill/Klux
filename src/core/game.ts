@@ -6,6 +6,7 @@ import { scoreLines, waveClearBonus } from './scoring';
 import { getWave, spawnIntervalMs, travelMs } from './waves';
 import { nextInt, createRng } from './rng';
 import type { Command } from './commands';
+import { buildConfig } from '../config';
 
 let _nextId = 1;
 
@@ -23,21 +24,25 @@ export function speedTier(state: GameState): number {
 function spawnTile(state: GameState): GameState {
   const { config, rng } = state;
 
-  // Roll for special type in priority order (rarest first)
-  const roll = Math.random();
-  let cumulative = 0;
-  let tileType: Tile['type'] =
-    roll < (cumulative += config.wildChance)    ? 'wild'     :
-    roll < (cumulative += config.lockedChance)  ? 'locked'   :
-    roll < (cumulative += config.doubleChance)  ? 'double'   :
-    roll < (cumulative += config.negativeChance)? 'negative' :
-    'normal';
-
-  // VS power 4: opponent cursed the next N tiles to be negative
+  let tileType: Tile['type'] = 'normal';
   let vsNegativeCount = state.vsNegativeCount;
-  if (vsNegativeCount > 0 && tileType === 'normal') {
-    tileType = 'negative';
-    vsNegativeCount--;
+
+  if (state.totalTilesFed >= 20) {
+    // Roll for special type in priority order (rarest first)
+    const roll = Math.random();
+    let cumulative = 0;
+    tileType =
+      roll < (cumulative += config.wildChance)    ? 'wild'     :
+      roll < (cumulative += config.lockedChance)  ? 'locked'   :
+      roll < (cumulative += config.doubleChance)  ? 'double'   :
+      roll < (cumulative += config.negativeChance)? 'negative' :
+      'normal';
+
+    // VS power 4: opponent cursed the next N tiles to be negative
+    if (vsNegativeCount > 0 && tileType === 'normal') {
+      tileType = 'negative';
+      vsNegativeCount--;
+    }
   }
 
   const tile = newTile(nextInt(rng, 0, config.colorCount), tileType);
@@ -60,6 +65,7 @@ function spawnTile(state: GameState): GameState {
     ...state,
     conveyor: [...state.conveyor, falling],
     tilesFedThisWave: state.tilesFedThisWave + 1,
+    totalTilesFed: state.totalTilesFed + 1,
     vsNegativeCount,
     spawnTimer: interval,
   };
@@ -128,13 +134,13 @@ function resolveMatches(state: GameState): GameState {
 
 function applyCommand(state: GameState, cmd: Command): GameState {
   if (cmd.type === 'START_CLASSIC' && (state.phase === 'title' || state.phase === 'gameOver')) {
-    return startGame(state.config, 'classic');
+    return startGame(buildConfig(cmd.difficulty), 'classic');
   }
   if (cmd.type === 'START_ENDLESS' && (state.phase === 'title' || state.phase === 'gameOver')) {
-    return startGame(state.config, 'endless');
+    return startGame(buildConfig(cmd.difficulty), 'endless');
   }
   if (cmd.type === 'START_VS') {
-    return startGame({ ...state.config, seed: cmd.seed }, 'versus');
+    return startGame({ ...buildConfig(cmd.difficulty), seed: cmd.seed }, 'versus');
   }
   if (cmd.type === 'QUIT_TO_TITLE') {
     return { ...startGame(state.config), phase: 'title' };
@@ -153,7 +159,15 @@ function applyCommand(state: GameState, cmd: Command): GameState {
     return { ...state, conveyor: [...state.conveyor, { tile, lane, progress: 0 }] };
   }
   if (cmd.type === 'VS_EXTRA_SPAWN' && state.phase === 'playing') {
-    return spawnTile(state);
+    // Inject an extra tile immediately without disturbing the normal spawn rhythm
+    const { config, rng } = state;
+    let vsNegativeCount = state.vsNegativeCount;
+    let tileType: Tile['type'] = 'normal';
+    if (state.totalTilesFed >= 20 && vsNegativeCount > 0) { tileType = 'negative'; vsNegativeCount--; }
+    const tile = newTile(nextInt(rng, 0, config.colorCount), tileType);
+    const lane = nextInt(rng, 0, config.cols);
+    const falling: FallingTile = { tile, lane, progress: 0 };
+    return { ...state, conveyor: [...state.conveyor, falling], vsNegativeCount, tilesFedThisWave: state.tilesFedThisWave + 1, totalTilesFed: state.totalTilesFed + 1 };
   }
   if (cmd.type === 'VS_SPEED_BOOST' && state.phase === 'playing') {
     return { ...state, vsSpeedBoost: 10_000 };
@@ -287,6 +301,7 @@ export function startGame(config: GameConfig, mode: GameMode = 'classic'): GameS
     wave,
     waveProgress: 0,
     tilesFedThisWave: 0,
+    totalTilesFed: 0,
     nextTileId: 1,
     spawnTimer: config.baseSpawnMs,
     rng,
@@ -296,7 +311,6 @@ export function startGame(config: GameConfig, mode: GameMode = 'classic'): GameS
     vsSpeedBoost:    0,
     vsNegativeCount: 0,
     vsWon:           false,
-    totalTilesFed:   0,
   };
 }
 

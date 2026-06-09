@@ -1,11 +1,11 @@
 import type { TileType } from '../core/types';
 
 // Hue + shape per color index — never rely on hue alone (colorblind-friendly)
-export const FILL_COLORS = ['#e63946', '#4361ee', '#06d6a0', '#f4a261', '#9b5de5'];
-const DARK_COLORS = ['#9b1d24', '#1e2f8f', '#048c69', '#c67932', '#6a3fa0'];
+export const FILL_COLORS = ['#e63946', '#4361ee', '#06d6a0', '#f4a261', '#9b5de5', '#ffd166', '#f0f0f0'];
+const DARK_COLORS = ['#9b1d24', '#1e2f8f', '#048c69', '#c67932', '#6a3fa0', '#c9a000', '#909090'];
 
-type Shape = 'circle' | 'square' | 'triangle' | 'diamond' | 'cross';
-const SHAPES: Shape[] = ['circle', 'square', 'triangle', 'diamond', 'cross'];
+type Shape = 'circle' | 'square' | 'triangle' | 'diamond' | 'cross' | 'hexagon' | 'ring';
+const SHAPES: Shape[] = ['circle', 'square', 'triangle', 'diamond', 'cross', 'hexagon', 'ring'];
 
 export function drawTile(
   ctx: CanvasRenderingContext2D,
@@ -273,6 +273,27 @@ function drawShape(
       ctx.beginPath();
       ctx.rect(cx - t, cy - r, t * 2, r * 2);
       ctx.fill();
+      break;
+    }
+
+    case 'hexagon': {
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i - Math.PI / 6;
+        const px = cx + r * Math.cos(angle);
+        const py = cy + r * Math.sin(angle);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+
+    case 'ring': {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = r * 0.5;
+      ctx.arc(cx, cy, r * 0.75, 0, Math.PI * 2);
+      ctx.stroke();
       break;
     }
   }

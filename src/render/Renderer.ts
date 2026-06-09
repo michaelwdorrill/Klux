@@ -1,4 +1,4 @@
-import type { GameState, GoalType, Wave } from '../core/types';
+import type { GameState, GoalType, Wave, Difficulty } from '../core/types';
 import { computeLayout, type Layout } from './layout';
 import { drawTile, drawGhostTile, FILL_COLORS } from './tiles';
 import { Effects } from './effects';
@@ -40,6 +40,7 @@ export class Renderer {
   private autoPlay = false;
   private tutorialText = '';
   private tutorialAlpha = 0;
+  private vsIntro: { ourName: string; opponentName: string; difficulty: Difficulty; countdownMs: number } | null = null;
   debugMode = false;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -138,6 +139,11 @@ export class Renderer {
       drawTutorialMessage(ctx, w, h, layout, this.tutorialText, this.tutorialAlpha);
     }
 
+    if (this.vsIntro) {
+      this.vsIntro.countdownMs -= dtMs;
+      drawVsIntro(ctx, w, h, this.vsIntro);
+    }
+
     if (this.showHowToPlay) {
       drawHowToPlay(ctx, w, h);
     }
@@ -197,6 +203,9 @@ export class Renderer {
   setVsDisconnectWin(on: boolean): void { this.vsDisconnectWin = on; }
   setShowHowToPlay(on: boolean): void { this.showHowToPlay = on; }
   toggleHowToPlay(): void { this.showHowToPlay = !this.showHowToPlay; }
+  setVsIntro(data: { ourName: string; opponentName: string; difficulty: Difficulty; countdownMs: number } | null): void {
+    this.vsIntro = data;
+  }
   setTutorial(text: string, alpha: number): void {
     this.tutorialText = text;
     this.tutorialAlpha = alpha;
@@ -732,6 +741,16 @@ export class Renderer {
         ctx.fillText(`best ${best.toLocaleString()}`, cx, y);
         y += fontSize + 4;
       }
+
+      // Difficulty badge (hard/elite only)
+      if (state.config.difficulty !== 'normal') {
+        const badgeColor = state.config.difficulty === 'elite' ? '#ef476f' : '#f4a261';
+        ctx.fillStyle = badgeColor;
+        ctx.font = `bold ${fontSize - 2}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.fillText(state.config.difficulty.toUpperCase(), cx, y);
+        y += fontSize + 4;
+      }
+
       y += 8;
 
       if (state.mode !== 'versus') {
@@ -1180,6 +1199,81 @@ function drawTutorialMessage(
 
   ctx.restore();
   void h; void w;
+}
+
+function drawVsIntro(
+  ctx: CanvasRenderingContext2D,
+  w: number, h: number,
+  data: { ourName: string; opponentName: string; difficulty: string; countdownMs: number },
+): void {
+  ctx.save();
+  // Full-screen dark overlay
+  ctx.fillStyle = 'rgba(8,10,22,0.95)';
+  ctx.fillRect(0, 0, w, h);
+
+  const cx = w / 2;
+  const baseSize = Math.max(14, Math.min(22, w / 24));
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // "VERSUS" header with glow
+  ctx.save();
+  ctx.shadowColor = '#9bd1ff';
+  ctx.shadowBlur = 24;
+  ctx.fillStyle = '#9bd1ff';
+  ctx.font = `bold ${baseSize * 2.2}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.fillText('VERSUS', cx, h * 0.22);
+  ctx.restore();
+
+  // Names row
+  const namesY = h * 0.40;
+  const nameSize = baseSize * 1.6;
+  ctx.font = `bold ${nameSize}px 'Segoe UI', system-ui, sans-serif`;
+
+  // Our name (left)
+  const ourName = data.ourName || 'YOU';
+  ctx.fillStyle = '#06d6a0';
+  ctx.textAlign = 'right';
+  ctx.fillText(ourName, cx - baseSize * 2, namesY);
+
+  // vs divider
+  ctx.fillStyle = 'rgba(200,200,220,0.4)';
+  ctx.font = `${baseSize * 0.9}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('vs', cx, namesY);
+
+  // Opponent name (right)
+  ctx.font = `bold ${nameSize}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.fillStyle = '#ef476f';
+  ctx.textAlign = 'left';
+  const oppName = data.opponentName || '???';
+  ctx.fillText(oppName, cx + baseSize * 2, namesY);
+
+  // Difficulty badge
+  const diffColors: Record<string, string> = { normal: '#06d6a0', hard: '#f4a261', elite: '#ef476f' };
+  const diffColor = diffColors[data.difficulty] ?? '#9bd1ff';
+  const diffLabel = data.difficulty.toUpperCase();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = diffColor;
+  ctx.font = `bold ${baseSize * 1.1}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.fillText(`${diffLabel} MODE`, cx, h * 0.55);
+
+  // Separator
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(cx - 80, h * 0.61, 160, 1);
+
+  // Countdown
+  const secondsLeft = Math.ceil(data.countdownMs / 1000);
+  const countText = secondsLeft > 0 ? `${secondsLeft}…` : 'GO!';
+  ctx.fillStyle = 'rgba(200,200,220,0.7)';
+  ctx.font = `${baseSize * 0.9}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.fillText('Game starting in', cx, h * 0.68);
+  ctx.fillStyle = '#ffd166';
+  ctx.font = `bold ${baseSize * 2.5}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.fillText(countText, cx, h * 0.80);
+
+  ctx.restore();
 }
 
 function drawHowToPlay(ctx: CanvasRenderingContext2D, w: number, h: number): void {

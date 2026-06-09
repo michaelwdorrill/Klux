@@ -1,6 +1,6 @@
 import type { Command } from './commands';
 import type { InputAdapter } from './InputAdapter';
-import type { Phase, GameMode } from '../core/types';
+import type { Phase, GameMode, Difficulty } from '../core/types';
 
 
 export class OnScreenControls implements InputAdapter {
@@ -9,6 +9,7 @@ export class OnScreenControls implements InputAdapter {
   private container: HTMLElement | null = null;
   private confirmBtn: HTMLButtonElement | null = null;
   private modePicker: HTMLElement | null = null;
+  private difficultyPicker: HTMLElement | null = null;
   private pauseMenu: HTMLElement | null = null;
   private gameControls: HTMLElement | null = null;
   private fireBtn: HTMLButtonElement | null = null;
@@ -16,6 +17,7 @@ export class OnScreenControls implements InputAdapter {
   private onMuteToggle: (() => boolean) | null = null;
   private onVsOpen: (() => void) | null = null;
   private onHowToPlay: (() => void) | null = null;
+  private pendingMode: 'classic' | 'endless' | null = null;
 
   setVsHandler(fn: () => void): void { this.onVsOpen = fn; }
   setHowToPlayHandler(fn: () => void): void { this.onHowToPlay = fn; }
@@ -60,14 +62,22 @@ export class OnScreenControls implements InputAdapter {
   /** Call each frame so the control set reflects the current game phase. */
   update(phase: Phase, mode: GameMode = 'classic', powerMeter = 0): void {
     if (!this.container) return;
+
+    // Reset pendingMode when leaving title/gameOver
+    if (phase !== 'title' && phase !== 'gameOver') {
+      this.pendingMode = null;
+    }
+
     const pickMode   = phase === 'title' || phase === 'gameOver';
+    const showDiffPicker = pickMode && this.pendingMode !== null;
     const showGame   = (phase === 'playing' || phase === 'paused') && this.isTouchLike();
     const showPause  = phase === 'paused';
     const anyVisible = pickMode || phase === 'waveClear' || showGame || showPause;
 
     this.container.style.display  = anyVisible ? '' : 'none';
     this.gameControls!.style.display = showGame    ? '' : 'none';
-    this.modePicker!.style.display   = pickMode    ? '' : 'none';
+    this.modePicker!.style.display   = pickMode && !showDiffPicker ? '' : 'none';
+    this.difficultyPicker!.style.display = showDiffPicker ? '' : 'none';
     this.pauseMenu!.style.display    = showPause   ? '' : 'none';
     this.confirmBtn!.style.display   = phase === 'waveClear' ? '' : 'none';
 
@@ -109,8 +119,8 @@ export class OnScreenControls implements InputAdapter {
     const mp = document.createElement('div');
     mp.className = 'osc-mode-picker';
     mp.innerHTML = `
-      <button class="osc-btn osc-mode" data-cmd="START_CLASSIC" aria-label="Classic mode">CLASSIC</button>
-      <button class="osc-btn osc-mode" data-cmd="START_ENDLESS" aria-label="Endless mode">ENDLESS</button>
+      <button class="osc-btn osc-mode" data-mode="classic" aria-label="Classic mode">CLASSIC</button>
+      <button class="osc-btn osc-mode" data-mode="endless" aria-label="Endless mode">ENDLESS</button>
     `;
     // VS button — triggers the lobby overlay, not a direct game command
     const vsBtn = document.createElement('button');
@@ -135,6 +145,57 @@ export class OnScreenControls implements InputAdapter {
     });
     mp.appendChild(htpBtn);
     this.modePicker = mp;
+
+    // Difficulty picker — shown after mode selection
+    const dp = document.createElement('div');
+    dp.className = 'osc-difficulty-picker';
+    dp.style.display = 'none';
+    dp.innerHTML = `
+      <div class="osc-diff-label">SELECT DIFFICULTY</div>
+      <button class="osc-btn osc-diff" data-diff="normal">NORMAL</button>
+      <button class="osc-btn osc-diff" data-diff="hard">HARD</button>
+      <button class="osc-btn osc-diff" data-diff="elite">ELITE</button>
+      <button class="osc-btn osc-back">BACK</button>
+    `;
+    dp.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!this.emit) return;
+      const btn = (e.target as HTMLElement).closest('[data-diff], .osc-back') as HTMLElement | null;
+      if (!btn) return;
+      if (btn.classList.contains('osc-back')) {
+        this.pendingMode = null;
+        // Force update to show mode picker again
+        this.modePicker!.style.display = '';
+        dp.style.display = 'none';
+        return;
+      }
+      const diff = btn.dataset['diff'] as Difficulty | undefined;
+      if (diff && this.pendingMode) {
+        const mode = this.pendingMode;
+        this.pendingMode = null;
+        if (mode === 'classic') {
+          this.emit({ type: 'START_CLASSIC', difficulty: diff });
+        } else {
+          this.emit({ type: 'START_ENDLESS', difficulty: diff });
+        }
+      }
+    });
+    this.difficultyPicker = dp;
+
+    // Intercept CLASSIC/ENDLESS data-mode buttons to show difficulty picker
+    mp.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const btn = (e.target as HTMLElement).closest('[data-mode]') as HTMLElement | null;
+      if (!btn) return;
+      const mode = btn.dataset['mode'] as 'classic' | 'endless' | undefined;
+      if (mode) {
+        this.pendingMode = mode;
+        mp.style.display = 'none';
+        dp.style.display = '';
+      }
+    });
 
     // Pause menu — shown on all devices when paused
     const pm = document.createElement('div');
@@ -180,6 +241,7 @@ export class OnScreenControls implements InputAdapter {
 
     c.appendChild(confirmBtn);
     c.appendChild(mp);
+    c.appendChild(dp);
     c.appendChild(pm);
     c.appendChild(gc);
 
