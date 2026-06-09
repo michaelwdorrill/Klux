@@ -33,7 +33,9 @@ export class Renderer {
   private opponentWell: number[][] = [];
   private opponentDrops = -1;
   private opponentPower = 0;
+  private opponentEventCount = 0;
   private curseTimer = 0;
+  private autoPlay = false;
   debugMode = false;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -95,7 +97,7 @@ export class Renderer {
 
     // VS opponent panel — always on top of HUD, below pause/game-over overlays
     if (state.mode === 'versus' && state.phase === 'playing') {
-      drawOpponentPanel(ctx, layout, w, this.opponentWell, this.opponentDrops, this.opponentPower, state.config.maxDrops);
+      drawOpponentPanel(ctx, layout, w, this.opponentWell, this.opponentDrops, this.opponentPower, state.config.maxDrops, this.opponentEventCount);
     }
 
     const wellCenterX = layout.wellOrigin.x + (layout.cellSize * layout.cols) / 2;
@@ -118,6 +120,16 @@ export class Renderer {
 
     this.effects.endFrame();
     this.drawBuildLabel(w, h);
+    if (this.autoPlay) {
+      const ctx = this.ctx;
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,209,102,0.9)';
+      ctx.font = 'bold 11px monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('🤖 AUTO  Ctrl+D to stop', 6, h - 18);
+      ctx.restore();
+    }
   }
 
   private drawBuildLabel(_w: number, h: number): void {
@@ -145,13 +157,15 @@ export class Renderer {
     this.titleLeaderboard = data;
   }
 
-  setOpponentState(well: number[][], drops: number, power = 0): void {
-    this.opponentWell  = well;
-    this.opponentDrops = drops;
-    this.opponentPower = power;
+  setOpponentState(well: number[][], drops: number, power = 0, eventCount = 0): void {
+    this.opponentWell       = well;
+    this.opponentDrops      = drops;
+    this.opponentPower      = power;
+    this.opponentEventCount = eventCount;
   }
 
   triggerCurse(): void { this.curseTimer = 2200; }
+  setAutoPlay(on: boolean): void { this.autoPlay = on; }
 
   private drawDebug(state: GameState, w: number): void {
     const { ctx } = this;
@@ -748,6 +762,7 @@ function drawOpponentPanel(
   opponentDrops: number,
   opponentPower: number,
   maxDrops: number,
+  eventCount = 0,
 ): void {
   const rows = opponentWell.length;
   const cols = opponentWell[0]?.length ?? 5;
@@ -797,7 +812,7 @@ function drawOpponentPanel(
   if (!hasData) {
     ctx.fillStyle = 'rgba(180,180,200,0.4)';
     ctx.font = `8px 'Segoe UI', system-ui, sans-serif`;
-    ctx.fillText('waiting…', panelX + panelW / 2, y + 4);
+    ctx.fillText(`waiting… (ev:${eventCount})`, panelX + panelW / 2, y + 4);
     return;
   }
 

@@ -18,6 +18,8 @@ export class VsClient {
   opponentWell: number[][] = [];  // [row][col] = color index or -1
   opponentDrops = -1;             // -1 = not yet received
   opponentPower = 0;
+  /** Total board events received — shown on opponent panel for debugging. */
+  boardEventCount = 0;
 
   /** Called for every non-board event that arrives from the opponent. */
   onEvent: (ev: VsEvent) => void = () => {};
@@ -78,6 +80,7 @@ export class VsClient {
     this.opponentWell = [];
     this.opponentDrops = -1;
     this.opponentPower = 0;
+    this.boardEventCount = 0;
   }
 
   private async poll(): Promise<void> {
@@ -93,6 +96,7 @@ export class VsClient {
         this.opponentWell  = p.well;
         this.opponentDrops = p.drops;
         this.opponentPower = p.power ?? 0;
+        this.boardEventCount++;
       } else {
         this.onEvent(ev);
       }
