@@ -53,9 +53,14 @@ const TILE_DROP_MS = 180;
 const OWEN_MS = 1000;
 const OWEN_PEAK_ALPHA = 0.35;
 
+const CHAIN_STAGGER_MS = 180;
+
+interface PendingClear { ev: ClearEvent; layout: Layout; triggerAt: number }
+
 export class Effects {
   private particles: Particle[] = [];
   private popups: Popup[] = [];
+  private pendingClears: PendingClear[] = [];
   private shake = 0;
   private foulFlashTtl = 0;
   private prevPhase: string | null = null;
@@ -85,8 +90,12 @@ export class Effects {
     this.now += dtMs;
 
     for (const ev of fx.clears) {
-      this.handleClear(ev, layout);
+      this.pendingClears.push({ ev, layout, triggerAt: this.now + (ev.chainStep - 1) * CHAIN_STAGGER_MS });
     }
+    this.pendingClears = this.pendingClears.filter(item => {
+      if (this.now >= item.triggerAt) { this.handleClear(item.ev, item.layout); return false; }
+      return true;
+    });
 
     if (fx.lastFoul === 'missed' || fx.lastFoul === 'fullColumn') {
       this.shake = Math.max(this.shake, 9);

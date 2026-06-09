@@ -85,7 +85,8 @@ export interface FxState {
   clears: ClearEvent[];
   chainStep: number;
   lastFoul?: 'fullColumn' | 'missed';
-  caught: boolean;  // true if at least one tile was caught this step
+  caught: boolean;     // true if at least one tile was caught this step
+  tileDropped: boolean; // true if a tile was successfully placed in the well
 }
 
 export interface GameState {

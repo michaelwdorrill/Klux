@@ -215,7 +215,7 @@ function handleDrop(state: GameState): GameState {
   }
 
   const newWell = dropTile(state.well, col, tile)!;
-  let next: GameState = { ...state, paddle: remaining, well: newWell };
+  let next: GameState = { ...state, paddle: remaining, well: newWell, fx: { ...state.fx, tileDropped: true } };
 
   // Update SURVIVE goal progress (classic only — endless has no waves to clear)
   if (state.mode === 'classic' && state.wave.goal === 'SURVIVE') {
@@ -267,7 +267,7 @@ function startWave(state: GameState, waveIndex: number): GameState {
     tilesFedThisWave: 0,
     spawnTimer: spawnIntervalMs(waveIndex, state.config.baseSpawnMs, state.config.minSpawnMs, state.config.spawnStepPerWave),
     conveyor: [],
-    fx: { clears: [], chainStep: 0, caught: false },
+    fx: { clears: [], chainStep: 0, caught: false, tileDropped: false },
   };
 }
 
@@ -290,7 +290,7 @@ export function startGame(config: GameConfig, mode: GameMode = 'classic'): GameS
     nextTileId: 1,
     spawnTimer: config.baseSpawnMs,
     rng,
-    fx: { clears: [], chainStep: 0, caught: false },
+    fx: { clears: [], chainStep: 0, caught: false, tileDropped: false },
     kluxCount: 0,
     vsPowerMeter:    0,
     vsSpeedBoost:    0,
@@ -303,13 +303,13 @@ export function startGame(config: GameConfig, mode: GameMode = 'classic'): GameS
 export function step(state: GameState, dtMs: number, commands: Command[]): GameState {
   if (state.phase !== 'playing') {
     // Clear transient FX so sounds don't loop while game is paused/over
-    let s: GameState = { ...state, fx: { clears: [], chainStep: 0, lastFoul: undefined, caught: false } };
+    let s: GameState = { ...state, fx: { clears: [], chainStep: 0, lastFoul: undefined, caught: false, tileDropped: false } };
     for (const cmd of commands) s = applyCommand(s, cmd);
     return s;
   }
 
   // Clear transient FX from previous frame
-  let s: GameState = { ...state, fx: { clears: [], chainStep: 0, lastFoul: undefined, caught: false } };
+  let s: GameState = { ...state, fx: { clears: [], chainStep: 0, lastFoul: undefined, caught: false, tileDropped: false } };
 
   // Apply commands first
   for (const cmd of commands) {
