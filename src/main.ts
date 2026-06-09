@@ -382,7 +382,6 @@ function frame(now: number): void {
       const capturedWave  = state.wave.index + 1;
       const capturedDiff  = diff;
       nameEntry.show(async (name) => {
-        nameEntry.hide();
         const lbMode = leaderboardKey(capturedMode, capturedDiff);
         await postScore(lbMode, name, capturedScore, capturedWave);
         const lbKeys = ['classic', 'endless', 'classic_hard', 'endless_hard', 'classic_elite', 'endless_elite'];
@@ -394,6 +393,12 @@ function frame(now: number): void {
         lbKeys.forEach((k, i) => { lbMap[k] = lbResults[i]; });
         renderer.setLeaderboard(entries, capturedScore);
         renderer.setTitleLeaderboard(lbMap);
+        nameEntry.showResults(
+          () => input.inject(capturedMode === 'classic'
+            ? { type: 'START_CLASSIC', difficulty: capturedDiff }
+            : { type: 'START_ENDLESS', difficulty: capturedDiff }),
+          () => input.inject({ type: 'QUIT_TO_TITLE' }),
+        );
       });
     }
   }

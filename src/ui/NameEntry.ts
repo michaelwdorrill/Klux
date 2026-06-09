@@ -1,25 +1,29 @@
 type SubmitCallback = (name: string) => void;
+type ActionCallback = () => void;
 
 export class NameEntry {
   private readonly overlay: HTMLElement;
   private readonly inputs: HTMLInputElement[] = [];
   private readonly submitBtn: HTMLButtonElement;
+  private readonly inputView: HTMLElement;
+  private readonly resultsView: HTMLElement;
   private onSubmit: SubmitCallback = () => {};
 
   constructor() {
-    const { overlay, submitBtn } = this.build();
-    this.overlay  = overlay;
-    this.submitBtn = submitBtn;
+    const { overlay, submitBtn, inputView, resultsView } = this.build();
+    this.overlay     = overlay;
+    this.submitBtn   = submitBtn;
+    this.inputView   = inputView;
+    this.resultsView = resultsView;
     document.body.appendChild(overlay);
   }
 
-  private build(): { overlay: HTMLElement; submitBtn: HTMLButtonElement } {
+  private build(): { overlay: HTMLElement; submitBtn: HTMLButtonElement; inputView: HTMLElement; resultsView: HTMLElement } {
     const overlay = document.createElement('div');
     overlay.style.cssText = [
       'display:none',
       'position:fixed',
       'inset:0',
-      'background:rgba(10,12,24,0.88)',
       'z-index:200',
       'align-items:center',
       'justify-content:center',
@@ -27,6 +31,20 @@ export class NameEntry {
       'gap:18px',
       'font-family:"Segoe UI",system-ui,sans-serif',
       'color:#e0e0e0',
+      'pointer-events:none',
+    ].join(';');
+
+    // ── Input phase ──────────────────────────────────────────────────────────
+    const inputView = document.createElement('div');
+    inputView.style.cssText = [
+      'display:flex',
+      'flex-direction:column',
+      'align-items:center',
+      'gap:18px',
+      'background:rgba(10,12,24,0.92)',
+      'border-radius:14px',
+      'padding:28px 32px',
+      'pointer-events:all',
     ].join(';');
 
     const title = document.createElement('div');
@@ -62,12 +80,13 @@ export class NameEntry {
         this.syncSubmit();
       });
       inp.addEventListener('keydown', (e) => {
+        // Stop Enter/Space from reaching the game loop
+        if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
         if (e.key === 'Backspace' && !inp.value && i > 0) {
           this.inputs[i - 1].focus();
           this.inputs[i - 1].value = '';
           this.syncSubmit();
         }
-        // Enter on last box submits
         if (e.key === 'Enter') this.trySubmit();
       });
 
@@ -93,13 +112,33 @@ export class NameEntry {
     ].join(';');
     submitBtn.addEventListener('click', () => this.trySubmit());
 
-    overlay.append(title, inputRow, submitBtn);
-    return { overlay, submitBtn };
+    inputView.append(title, inputRow, submitBtn);
+
+    // ── Results phase ─────────────────────────────────────────────────────────
+    const resultsView = document.createElement('div');
+    resultsView.style.cssText = [
+      'display:none',
+      'flex-direction:column',
+      'align-items:center',
+      'gap:12px',
+      'background:rgba(10,12,24,0.88)',
+      'border-radius:14px',
+      'padding:22px 32px',
+      'pointer-events:all',
+    ].join(';');
+
+    const resultsTitle = document.createElement('div');
+    resultsTitle.textContent = 'SCORE SUBMITTED';
+    resultsTitle.style.cssText = 'font-size:1rem;font-weight:bold;letter-spacing:.1em;color:#06d6a0';
+    resultsView.appendChild(resultsTitle);
+
+    overlay.append(inputView, resultsView);
+    return { overlay, submitBtn, inputView, resultsView };
   }
 
   private syncSubmit(): void {
     const full = this.inputs.every(i => i.value.length === 1);
-    this.submitBtn.disabled     = !full;
+    this.submitBtn.disabled      = !full;
     this.submitBtn.style.opacity = full ? '1' : '0.35';
   }
 
@@ -111,12 +150,51 @@ export class NameEntry {
   show(callback: SubmitCallback): void {
     this.onSubmit = callback;
     this.inputs.forEach(i => { i.value = ''; });
-    this.overlay.style.display = 'flex';
+    this.inputView.style.display   = 'flex';
+    this.resultsView.style.display = 'none';
+    this.overlay.style.display     = 'flex';
     this.syncSubmit();
     setTimeout(() => this.inputs[0].focus(), 60);
   }
 
+  /** Called after score is posted — hides the input, shows Play Again / Main Menu buttons. */
+  showResults(onReplay: ActionCallback, onMenu: ActionCallback): void {
+    this.inputView.style.display   = 'none';
+    this.resultsView.style.display = 'flex';
+
+    // Clear old buttons (in case showResults is called more than once)
+    const old = this.resultsView.querySelectorAll('button');
+    old.forEach(b => b.remove());
+
+    const btnStyle = (bg: string) => [
+      `padding:11px 28px`,
+      `font-size:0.95rem`,
+      `font-weight:bold`,
+      `letter-spacing:.08em`,
+      `background:${bg}`,
+      `color:#fff`,
+      `border:none`,
+      `border-radius:8px`,
+      `cursor:pointer`,
+      `min-width:160px`,
+    ].join(';');
+
+    const replayBtn = document.createElement('button');
+    replayBtn.textContent = '▶  PLAY AGAIN';
+    replayBtn.style.cssText = btnStyle('#2d6a9f');
+    replayBtn.addEventListener('click', () => { this.hide(); onReplay(); });
+
+    const menuBtn = document.createElement('button');
+    menuBtn.textContent = '⌂  MAIN MENU';
+    menuBtn.style.cssText = btnStyle('rgba(80,80,100,0.7)');
+    menuBtn.addEventListener('click', () => { this.hide(); onMenu(); });
+
+    this.resultsView.append(replayBtn, menuBtn);
+  }
+
   hide(): void {
-    this.overlay.style.display = 'none';
+    this.overlay.style.display     = 'none';
+    this.inputView.style.display   = 'flex';
+    this.resultsView.style.display = 'none';
   }
 }
