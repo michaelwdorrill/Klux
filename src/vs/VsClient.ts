@@ -14,7 +14,11 @@ export class VsClient {
   private lastEventId = 0;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
 
-  /** Called for every event that arrives from the opponent. */
+  /** Latest opponent board state received via 'board' events. */
+  opponentWell: number[][] = [];  // [row][col] = color index or -1
+  opponentDrops = -1;             // -1 = not yet received
+
+  /** Called for every non-board event that arrives from the opponent. */
   onEvent: (ev: VsEvent) => void = () => {};
 
   async create(): Promise<{ id: string; seed: number; player: 'a' }> {
@@ -23,6 +27,7 @@ export class VsClient {
     const data = await r.json() as { id: string; seed: number; player: 'a' };
     this.matchId = data.id;
     this.player  = 'a';
+    this.reset();
     return data;
   }
 
@@ -32,6 +37,7 @@ export class VsClient {
     const data = await r.json() as { id: string; seed: number; player: 'b' };
     this.matchId = data.id;
     this.player  = 'b';
+    this.reset();
     return data;
   }
 
@@ -49,6 +55,11 @@ export class VsClient {
     this.stopPolling();
   }
 
+  /** Send a compact snapshot of the local board so the opponent can render it. */
+  sendBoard(well: number[][], drops: number): void {
+    this.postEvent('board', { well, drops });
+  }
+
   startPolling(): void {
     if (this.pollTimer !== null) return;
     this.pollTimer = setInterval(() => { this.poll().catch(() => {}); }, 1000);
@@ -61,6 +72,12 @@ export class VsClient {
     }
   }
 
+  private reset(): void {
+    this.lastEventId = 0;
+    this.opponentWell = [];
+    this.opponentDrops = -1;
+  }
+
   private async poll(): Promise<void> {
     const r = await fetch(
       `${API}/vs/poll/${this.matchId}?since=${this.lastEventId}`,
@@ -68,7 +85,14 @@ export class VsClient {
     const events = await r.json() as VsEvent[];
     for (const ev of events) {
       this.lastEventId = Math.max(this.lastEventId, ev.id);
-      if (ev.player !== this.player) this.onEvent(ev);
+      if (ev.player === this.player) continue;
+      if (ev.type === 'board') {
+        const p = ev.payload as { well: number[][]; drops: number };
+        this.opponentWell  = p.well;
+        this.opponentDrops = p.drops;
+      } else {
+        this.onEvent(ev);
+      }
     }
   }
 
