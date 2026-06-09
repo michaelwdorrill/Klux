@@ -182,7 +182,7 @@ function tutMessage(step: TutStep): string {
       ? 'Tap a lane to catch a tile'
       : 'Hover a lane (or use ← →) to move\nthen catch a tile on your paddle';
     case 2: return mobile
-      ? 'Tap your lane to drop\na tile into the well'
+      ? 'Tap the same lane again to drop\na tile into the well'
       : 'Click (or press Space / ↓) to drop\na tile into the well';
     case 3: return 'Place 3 matching tiles\nin a row for a KLUX!';
     case 4: return 'Horizontal KLUXes score more\nthan vertical ones';
@@ -274,6 +274,10 @@ function frame(now: number): void {
   const autoCmd = autoPlayer.tick(frameDt, state);
   if (autoCmd) input.inject(autoCmd);
 
+  let tutCaught = false;
+  let tutDropped = false;
+  let tutKluxed = false;
+
   while (acc >= FIXED_MS) {
     const commands = [...input.drain(), ...extraCmds.splice(0)];
     // Intercept FIRE_POWER to call vsClient and derive the level from current meter
@@ -286,6 +290,9 @@ function frame(now: number): void {
     }
     state = step(state, FIXED_MS, commands);
     acc -= FIXED_MS;
+    if (state.fx.caught) tutCaught = true;
+    if (state.fx.tileDropped) tutDropped = true;
+    if (state.fx.clears.length > 0) tutKluxed = true;
   }
 
   // Music tempo bumps in discrete tiers — coarser than the spawn ramp so the
@@ -374,9 +381,9 @@ function frame(now: number): void {
   // Tutorial state machine ticks every render frame
   if (state.phase === 'playing' && state.mode !== 'versus') {
     tutTick(frameDt);
-    if (tutStep === 1 && state.fx.caught) tutAdvance(2);
-    if (tutStep === 2 && state.fx.tileDropped) tutAdvance(3);
-    if (tutStep === 3 && state.fx.clears.length > 0) tutAdvance(4);
+    if (tutStep === 1 && tutCaught) tutAdvance(2);
+    if (tutStep === 2 && tutDropped) tutAdvance(3);
+    if (tutStep === 3 && tutKluxed) tutAdvance(4);
     const msg = tutMessage(tutStep as TutStep);
     renderer.setTutorial(msg, tutAlpha);
   } else if (state.phase !== 'playing') {
