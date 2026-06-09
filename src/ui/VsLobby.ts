@@ -9,6 +9,7 @@ export class VsLobby {
   /** Pending match that hasn't started yet (player A waiting for B). */
   private pendingMatch: { id: string; seed: number } | null = null;
   private resumeBtn: HTMLButtonElement | null = null;
+  private createBtn: HTMLButtonElement | null = null;
 
   constructor() {
     this.overlay = this.build();
@@ -23,6 +24,11 @@ export class VsLobby {
       // Resume the waiting view with the same code
       this.showWaiting(this.pendingMatch.id, this.pendingMatch.seed);
     } else {
+      // Reset create button in case a previous match ended with it stuck
+      if (this.createBtn) {
+        this.createBtn.disabled = false;
+        this.createBtn.textContent = 'CREATE MATCH';
+      }
       this.showView('main');
     }
     this.overlay.style.display = 'flex';
@@ -77,6 +83,7 @@ export class VsLobby {
     const createBtn = document.createElement('button');
     createBtn.textContent = 'CREATE MATCH';
     createBtn.style.cssText = btnStyle('#4a90d9');
+    this.createBtn = createBtn;
     createBtn.addEventListener('click', async () => {
       try {
         createBtn.disabled = true;
@@ -92,7 +99,7 @@ export class VsLobby {
 
     const orLine = document.createElement('div');
     orLine.textContent = '— or —';
-    orLine.style.cssText = 'font-size:.85rem;color:rgba(180,180,200,0.5)';
+    orLine.style.cssText = 'font-size:.85rem;color:rgba(180,180,200,0.5);margin-bottom:8px';
 
     const joinBtn = document.createElement('button');
     joinBtn.textContent = 'JOIN WITH CODE';
@@ -113,7 +120,11 @@ export class VsLobby {
     cancelBtn.style.cssText = ghostBtnStyle();
     cancelBtn.addEventListener('click', () => this.hide());
 
-    mainView.append(createBtn, orLine, joinBtn, resumeBtn, cancelBtn);
+    const joinRow = document.createElement('div');
+    joinRow.style.cssText = 'display:flex;gap:12px;align-items:center';
+    joinRow.append(joinBtn, cancelBtn);
+
+    mainView.append(createBtn, orLine, joinRow, resumeBtn);
 
     // ── Waiting view ──────────────────────────────────────────────────────
     const waitingView = document.createElement('div');
