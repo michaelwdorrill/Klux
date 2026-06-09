@@ -55,18 +55,66 @@ window.addEventListener('orientationchange', applyCanvasSize);
 // Auto-reload when a new service worker takes over so the PWA gets the latest build
 navigator.serviceWorker?.addEventListener('controllerchange', () => window.location.reload());
 
-// Unlock AudioContext on first gesture (browser autoplay policy)
-const unlockAudio = () => audio.unlock();
-window.addEventListener('keydown', unlockAudio);
-window.addEventListener('pointerdown', (e) => {
-  unlockAudio();
-  // Dismiss How to Play on any canvas tap
-  if (e.target === canvas) renderer.setShowHowToPlay(false);
-});
-
 // Load background music — put your Suno export at public/audio/theme.mp3
 audio.loadMusic('./audio/theme.mp3');
 audio.loadSfxFiles();
+
+// ── Tap-to-start splash ───────────────────────────────────────────────────
+// Build the overlay immediately so it's visible before any user interaction.
+const tapSplash = document.createElement('div');
+tapSplash.style.cssText = [
+  'position:fixed','inset:0','z-index:500',
+  'display:flex','flex-direction:column','align-items:center','justify-content:center',
+  'gap:24px',
+  'background:rgba(8,10,20,0.96)',
+  'font-family:"Segoe UI",system-ui,sans-serif',
+  'cursor:pointer','-webkit-tap-highlight-color:transparent',
+].join(';');
+
+const splashTitle = document.createElement('div');
+splashTitle.textContent = 'KLUX';
+splashTitle.style.cssText = 'font-size:clamp(3rem,12vw,5rem);font-weight:bold;color:#e0e0e0;letter-spacing:.08em';
+
+const splashPrompt = document.createElement('div');
+splashPrompt.textContent = 'TAP TO START';
+splashPrompt.style.cssText = [
+  'font-size:clamp(1rem,4vw,1.4rem)',
+  'font-weight:bold',
+  'letter-spacing:.18em',
+  'color:#9bd1ff',
+  'animation:tapPulse 1.4s ease-in-out infinite',
+].join(';');
+
+// Inject keyframe animation once
+if (!document.getElementById('tap-splash-style')) {
+  const style = document.createElement('style');
+  style.id = 'tap-splash-style';
+  style.textContent = '@keyframes tapPulse { 0%,100%{opacity:.5} 50%{opacity:1} }';
+  document.head.appendChild(style);
+}
+
+tapSplash.append(splashTitle, splashPrompt);
+document.body.appendChild(tapSplash);
+
+function dismissSplash(): void {
+  audio.unlock();
+  tapSplash.style.transition = 'opacity .3s';
+  tapSplash.style.opacity = '0';
+  setTimeout(() => tapSplash.remove(), 320);
+}
+
+tapSplash.addEventListener('pointerdown', dismissSplash, { once: true });
+tapSplash.addEventListener('keydown', dismissSplash, { once: true });
+
+// On desktop, autoplay often succeeds — dismiss automatically if audio starts.
+audio.tryAutoplay().then(ok => { if (ok) dismissSplash(); });
+
+// After splash is gone, pass regular input events through normally.
+window.addEventListener('pointerdown', (e) => {
+  if (!audio.isUnlocked) audio.unlock();
+  if (e.target === canvas) renderer.setShowHowToPlay(false);
+});
+window.addEventListener('keydown', () => { if (!audio.isUnlocked) audio.unlock(); });
 renderer.getEffects().loadOwen('./images/owen.png');
 
 // Restore persisted mute preference + high scores
