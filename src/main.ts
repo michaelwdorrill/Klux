@@ -106,14 +106,9 @@ onScreenControls.setVsHandler(() => {
   });
 });
 
-// Backtick toggles debug overlay; M toggles mute; F fires VS power
+// Backtick toggles debug overlay; F fires VS power
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Backquote') renderer.debugMode = !renderer.debugMode;
-  if (e.code === 'KeyM') {
-    const muted = audio.toggleMute();
-    setMuted(muted);
-    onScreenControls.setMuteState(muted);
-  }
   if (e.code === 'KeyF' && state.mode === 'versus' && state.phase === 'playing') {
     input.inject({ type: 'FIRE_POWER' });
   }
