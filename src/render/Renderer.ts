@@ -192,7 +192,7 @@ export class Renderer {
       ctx.fillStyle = 'rgba(140,140,160,0.55)';
       ctx.font = `${subSize * 0.78}px 'Segoe UI', system-ui, sans-serif`;
       ctx.fillText('Tap a button below · keys 1 / 2 also work', cx, cy + subSize * 3.1);
-      ctx.fillText('Arrows / WASD · Space = drop · P = pause · M = mute', cx, cy + subSize * 4.0);
+      ctx.fillText('Arrows / WASD · Space = drop · P = pause', cx, cy + subSize * 4.0);
 
       // Global leaderboards: two compact columns below the controls hint
       if (this.titleLeaderboard) {
@@ -827,18 +827,16 @@ function drawPowerMeter(
   }
 
   // Level label
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
   if (level > 0) {
     ctx.fillStyle = barColor;
     ctx.font = `bold ${fontSize - 2}px 'Segoe UI', system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.fillText(`⚡ LV${level}`, x + w / 2, y + h + 2);
+    ctx.fillText(`⚡ LV${level} — press F to fire`, x + w / 2, y + h + 2);
   } else {
     ctx.fillStyle = 'rgba(140,140,160,0.5)';
     ctx.font = `${fontSize - 3}px 'Segoe UI', system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.fillText('POWER', x + w / 2, y + h + 2);
+    ctx.fillText('POWER — charges from KLUXes', x + w / 2, y + h + 2);
   }
 }
 
