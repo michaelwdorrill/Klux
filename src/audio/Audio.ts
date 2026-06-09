@@ -26,6 +26,7 @@ const SFX_FILES: Record<string, string> = {
   Klux: './audio/Klux.wav',
   LevelClear: './audio/LevelClear.wav',
   Wow: './audio/wow.mp3',
+  Curse: './audio/Curse.wav',
 };
 
 export class Audio {
@@ -165,6 +166,11 @@ export class Audio {
   playWow(): void {
     if (!this.ctx || this.muted) return;
     this.playSfx('Wow', 1.4);
+  }
+
+  /** Play the curse sound when an opponent power hits you. */
+  sfxCurse(): void {
+    this.playSfx('Curse', 1.8);
   }
 
   /** Play the level-clear jingle (called from main.ts on waveClear transition).

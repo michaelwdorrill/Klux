@@ -17,6 +17,7 @@ export class VsClient {
   /** Latest opponent board state received via 'board' events. */
   opponentWell: number[][] = [];  // [row][col] = color index or -1
   opponentDrops = -1;             // -1 = not yet received
+  opponentPower = 0;
 
   /** Called for every non-board event that arrives from the opponent. */
   onEvent: (ev: VsEvent) => void = () => {};
@@ -56,8 +57,8 @@ export class VsClient {
   }
 
   /** Send a compact snapshot of the local board so the opponent can render it. */
-  sendBoard(well: number[][], drops: number): void {
-    this.postEvent('board', { well, drops });
+  sendBoard(well: number[][], drops: number, power: number): void {
+    this.postEvent('board', { well, drops, power });
   }
 
   startPolling(): void {
@@ -76,6 +77,7 @@ export class VsClient {
     this.lastEventId = 0;
     this.opponentWell = [];
     this.opponentDrops = -1;
+    this.opponentPower = 0;
   }
 
   private async poll(): Promise<void> {
@@ -87,9 +89,10 @@ export class VsClient {
       this.lastEventId = Math.max(this.lastEventId, ev.id);
       if (ev.player === this.player) continue;
       if (ev.type === 'board') {
-        const p = ev.payload as { well: number[][]; drops: number };
+        const p = ev.payload as { well: number[][]; drops: number; power: number };
         this.opponentWell  = p.well;
         this.opponentDrops = p.drops;
+        this.opponentPower = p.power ?? 0;
       } else {
         this.onEvent(ev);
       }
