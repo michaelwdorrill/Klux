@@ -1,4 +1,5 @@
 import type { GameConfig } from './core/types';
+import type { Difficulty } from './core/types';
 
 export const DEFAULT_CONFIG: GameConfig = {
   cols: 5,
@@ -32,4 +33,27 @@ export const DEFAULT_CONFIG: GameConfig = {
     diagonal:         [500, 1000, 1500],
     waveClearPerDrop: 1000,
   },
+  difficulty: 'normal',
 };
+
+export function buildConfig(difficulty: Difficulty = 'normal'): GameConfig {
+  const mult = difficulty === 'elite' ? 1.40 : difficulty === 'hard' ? 1.25 : 1.0;
+  const colorCount = difficulty === 'elite' ? 7 : difficulty === 'hard' ? 6 : 5;
+  const base: GameConfig = {
+    ...DEFAULT_CONFIG,
+    colorCount,
+    difficulty,
+    spawnStepPerWave: Math.round(DEFAULT_CONFIG.spawnStepPerWave * mult),
+    rampPerTile: DEFAULT_CONFIG.rampPerTile * mult,
+  };
+  if (difficulty === 'elite') {
+    return {
+      ...base,
+      wildChance:     DEFAULT_CONFIG.wildChance     * 0.5,   // 0.005
+      doubleChance:   DEFAULT_CONFIG.doubleChance   * 0.5,   // 0.02
+      negativeChance: DEFAULT_CONFIG.negativeChance * 1.2,   // 0.03
+      lockedChance:   DEFAULT_CONFIG.lockedChance   * 1.2,   // 0.024
+    };
+  }
+  return base;
+}

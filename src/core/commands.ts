@@ -1,4 +1,6 @@
 // Command union — defined in core so game.ts stays import-isolated from input/
+import type { Difficulty } from './types';
+
 export type Command =
   | { type: 'MOVE_LEFT' }
   | { type: 'MOVE_RIGHT' }
@@ -8,9 +10,9 @@ export type Command =
   | { type: 'PAUSE_TOGGLE' }
   | { type: 'CONFIRM' }
   | { type: 'QUIT_TO_TITLE' }
-  | { type: 'START_CLASSIC' }
-  | { type: 'START_ENDLESS' }
-  | { type: 'START_VS'; seed: number }  // seed synced from server
+  | { type: 'START_CLASSIC'; difficulty: Difficulty }
+  | { type: 'START_ENDLESS'; difficulty: Difficulty }
+  | { type: 'START_VS'; seed: number; difficulty: Difficulty }  // seed synced from server
   | { type: 'FIRE_POWER' }             // player releases power meter
   // Effects injected by opponent's power use
   | { type: 'VS_LOCKED' }             // level 1: locked tile on conveyor

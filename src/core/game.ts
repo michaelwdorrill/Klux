@@ -296,6 +296,7 @@ export function startGame(config: GameConfig, mode: GameMode = 'classic'): GameS
     vsSpeedBoost:    0,
     vsNegativeCount: 0,
     vsWon:           false,
+    totalTilesFed:   0,
   };
 }
 

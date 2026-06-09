@@ -124,7 +124,7 @@ onScreenControls.setVsHandler(() => {
       state = { ...state, phase: 'gameOver' };
     }
     renderer.setVsDisconnectWin(false);
-    input.inject({ type: 'START_VS', seed });
+    input.inject({ type: 'START_VS', seed, difficulty: 'normal' });
   });
 });
 
