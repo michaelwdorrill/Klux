@@ -249,32 +249,36 @@ export class Renderer {
     ctx.textBaseline = 'middle';
 
     if (state.phase === 'title') {
+      // Top-anchored layout so leaderboard always has room below the text block
+      const logoY    = h * 0.13;
+      const lineGap  = subSize * 1.15;
+
       ctx.fillStyle = '#e0e0e0';
       ctx.font = `bold ${titleSize * 1.6}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('KLUX', cx, cy - titleSize * 1.6);
+      ctx.fillText('KLUX', cx, logoY);
 
+      let ty = logoY + titleSize * 1.0 + subSize * 0.6;
       ctx.fillStyle = 'rgba(200,200,220,0.8)';
       ctx.font = `${subSize}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('Pick a mode to play', cx, cy - subSize * 0.6);
+      ctx.fillText('Pick a mode to play', cx, ty);
 
+      ty += lineGap;
       ctx.fillStyle = 'rgba(155,209,255,0.9)';
       ctx.font = `${subSize * 0.9}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText(`CLASSIC — chase the wave goals${bestSuffix(this.highScores.classic)}`, cx, cy + subSize * 0.6);
+      ctx.fillText(`CLASSIC — chase the wave goals${bestSuffix(this.highScores.classic)}`, cx, ty);
+      ty += lineGap * 0.95;
       ctx.fillStyle = 'rgba(255,209,102,0.9)';
-      ctx.fillText(`ENDLESS — survive as long as you can${bestSuffix(this.highScores.endless)}`, cx, cy + subSize * 1.7);
+      ctx.fillText(`ENDLESS — survive as long as you can${bestSuffix(this.highScores.endless)}`, cx, ty);
 
-      ctx.fillStyle = 'rgba(140,140,160,0.55)';
-      ctx.font = `${subSize * 0.78}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('Tap a button below · keys 1 / 2 also work', cx, cy + subSize * 3.1);
-      ctx.fillText('Arrows / WASD · Space = drop · P = pause', cx, cy + subSize * 4.0);
+      ty += lineGap * 1.3;
+      ctx.fillStyle = 'rgba(140,140,160,0.5)';
+      ctx.font = `${subSize * 0.75}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('Tap a button below  ·  keys 1 / 2  ·  Arrows/WASD  ·  Space = drop', cx, ty);
 
-      ctx.fillStyle = 'rgba(155,209,255,0.45)';
-      ctx.font = `${subSize * 0.72}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('? — How to play', cx, cy + subSize * 5.0);
+      const lbY = ty + subSize * 1.5;
 
       // Global leaderboards: two columns (Classic / Endless), each with Normal/Hard/Elite sections
       if (this.titleLeaderboard) {
-        const lbY = cy + subSize * 4.8;
         const colW = Math.min(w * 0.46, 195);
         const colCx = colW * 0.52;
         this.drawDiffLeaderboardColumn(ctx, cx - colCx, lbY, colW, subSize, 'CLASSIC', this.titleLeaderboard);
@@ -406,8 +410,8 @@ export class Renderer {
       { key: `${modeKey}_elite`,    label: 'Elite',  color: 'rgba(239,71,111,0.85)' },
     ];
 
-    const rowH    = subSize * 1.08;
-    const topRows = 2;
+    const rowH    = subSize * 1.05;
+    const topRows = 3;
     const sectionH = rowH * (topRows + 1) + 3;
     const gap      = subSize * 0.22;
     const totalH   = rowH + sectionH * 3 + gap * 2 + 6;
