@@ -74,28 +74,33 @@ onScreenControls.setMuteHandler(() => {
 onScreenControls.setMuteState(audio.isMuted);
 
 const vsClient = vsLobby.getClient();
-vsClient.onEvent = (ev) => {
-  if (ev.type === 'power') {
-    const level = (ev.payload as { level: number }).level;
-    const cmd: Command =
-      level >= 4 ? { type: 'VS_NEGATIVE_TILES' } :
-      level >= 3 ? { type: 'VS_SPEED_BOOST' } :
-      level >= 2 ? { type: 'VS_EXTRA_SPAWN' } :
-                   { type: 'VS_LOCKED' };
-    input.inject(cmd);
-  } else if (ev.type === 'gameover') {
-    input.inject({ type: 'VS_WIN' });
-    vsClient.stopPolling();
-  } else if (ev.type === 'disconnect') {
-    input.inject({ type: 'VS_WIN' });
-    vsClient.stopPolling();
-  }
-};
+
+function wireVsEvents(): void {
+  vsClient.onEvent = (ev) => {
+    if (ev.type === 'power') {
+      const level = (ev.payload as { level: number }).level;
+      const cmd: Command =
+        level >= 4 ? { type: 'VS_NEGATIVE_TILES' } :
+        level >= 3 ? { type: 'VS_SPEED_BOOST' } :
+        level >= 2 ? { type: 'VS_EXTRA_SPAWN' } :
+                     { type: 'VS_LOCKED' };
+      input.inject(cmd);
+    } else if (ev.type === 'gameover') {
+      input.inject({ type: 'VS_WIN' });
+      vsClient.stopPolling();
+    } else if (ev.type === 'disconnect') {
+      input.inject({ type: 'VS_WIN' });
+      vsClient.stopPolling();
+    }
+  };
+}
+wireVsEvents();
 
 onScreenControls.setVsHandler(() => {
   vsLobby.show((matchId, seed, player) => {
     vsClient.matchId = matchId;
     vsClient.player  = player;
+    wireVsEvents();          // restore handler after lobby overwrites it
     vsClient.startPolling();
     input.inject({ type: 'START_VS', seed });
   });
