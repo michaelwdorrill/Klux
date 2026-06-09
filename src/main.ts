@@ -11,7 +11,7 @@ import { PointerAdapter } from './input/PointerAdapter';
 import { OnScreenControls } from './input/OnScreenControls';
 import { Audio } from './audio/Audio';
 import type { Command } from './core/commands';
-import { loadHighScores, recordScore, getMuted, setMuted } from './persistence/store';
+import { loadHighScores, recordScore, getMuted, setMuted, getTutorialDone, setTutorialDone } from './persistence/store';
 import { NameEntry } from './ui/NameEntry';
 import { postScore, getTopScores, type LeaderboardEntry } from './leaderboard';
 import { VsLobby } from './ui/VsLobby';
@@ -160,6 +160,69 @@ let lastPhase = state.phase;
 let titleLeaderboardFetched = false;
 let vsBoardSyncTimer = 0;
 
+// ── Tutorial state machine ────────────────────────────────────────────────────
+// Steps:
+//  1 — catch first tile (show "catch" message + paddle highlight)
+//  2 — drop first tile into well  (after first catch)
+//  3 — make first KLUX            (after first drop)
+//  4/5/6 — three timed messages   (after first KLUX, 3 s each with fade)
+const isTouchLike = () => window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+type TutStep = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7; // 0=inactive, 7=done
+let tutStep: TutStep = getTutorialDone() ? 7 : 1;
+let tutAlpha = 0;       // current rendered alpha
+let tutFadeDir = 1;     // +1 fade in, -1 fade out
+let tutHoldMs = 0;      // ms remaining at full alpha (steps 4-6 only)
+const TUT_FADE_MS = 500;
+const TUT_HOLD_MS = 3000;
+
+function tutMessage(step: TutStep): string {
+  const mobile = isTouchLike();
+  switch (step) {
+    case 1: return mobile ? 'Tap a lane to catch a tile' : 'Move with ← → and catch a tile\non your paddle';
+    case 2: return mobile ? 'Tap your lane to drop\na tile into the well' : 'Press Space (or ↓) to drop\na tile into the well';
+    case 3: return 'Place 3 matching tiles\nin a row for a KLUX!';
+    case 4: return 'Horizontals score most points';
+    case 5: return 'Diagonals beat horizontals!';
+    case 6: return 'Good luck!';
+    default: return '';
+  }
+}
+
+function tutTick(dtMs: number): void {
+  if (tutStep === 0 || tutStep === 7) return;
+
+  // Steps 4–6: hold then auto-advance
+  if (tutStep >= 4) {
+    if (tutFadeDir === 1) {
+      tutAlpha = Math.min(1, tutAlpha + dtMs / TUT_FADE_MS);
+      if (tutAlpha >= 1) { tutAlpha = 1; tutFadeDir = 0; tutHoldMs = TUT_HOLD_MS; }
+    } else if (tutFadeDir === 0) {
+      tutHoldMs -= dtMs;
+      if (tutHoldMs <= 0) tutFadeDir = -1;
+    } else {
+      tutAlpha = Math.max(0, tutAlpha - dtMs / TUT_FADE_MS);
+      if (tutAlpha <= 0) {
+        const next = (tutStep + 1) as TutStep;
+        if (next > 6) { tutStep = 7; setTutorialDone(); }
+        else { tutStep = next; tutFadeDir = 1; }
+      }
+    }
+  } else {
+    // Steps 1–3: fade in to max, stay until trigger
+    tutAlpha = Math.min(1, tutAlpha + dtMs / TUT_FADE_MS);
+  }
+}
+
+function tutAdvance(to: TutStep): void {
+  if (tutStep === 7 || tutStep >= to) return;
+  tutStep = to;
+  tutAlpha = 0;
+  tutFadeDir = 1;
+  tutHoldMs = 0;
+  if (to === 7) setTutorialDone();
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function fetchTitleLeaderboard(): Promise<void> {
   const [classic, endless] = await Promise.all([
     getTopScores('classic', 5),
@@ -290,6 +353,13 @@ function frame(now: number): void {
     renderer.setNewBest(false);
     renderer.setLeaderboard(null);
     nameEntry.hide();
+    // Reset tutorial if it was completed but we're doing a fresh first-play check
+    if (!getTutorialDone() && state.mode !== 'versus') {
+      tutStep = 1 as TutStep;
+      tutAlpha = 0;
+      tutFadeDir = 1;
+      tutHoldMs = 0;
+    }
   }
   if (state.phase === 'title' && lastPhase !== 'title') {
     // Clean up VS session if quitting mid-game
@@ -302,6 +372,18 @@ function frame(now: number): void {
     } else {
       fetchTitleLeaderboard().catch(() => {});
     }
+  }
+
+  // Tutorial state machine ticks every render frame
+  if (state.phase === 'playing' && state.mode !== 'versus') {
+    tutTick(frameDt);
+    if (tutStep === 1 && state.fx.caught) tutAdvance(2);
+    if (tutStep === 2 && state.fx.tileDropped) tutAdvance(3);
+    if (tutStep === 3 && state.fx.clears.length > 0) tutAdvance(4);
+    const msg = tutMessage(tutStep as TutStep);
+    renderer.setTutorial(msg, tutAlpha, tutStep === 1);
+  } else if (state.phase !== 'playing') {
+    renderer.setTutorial('', 0, false);
   }
 
   // Per-frame SFX (catch + foul). Klux/Wow handled per-clear below.

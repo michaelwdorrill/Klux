@@ -38,6 +38,16 @@ export function setMuted(muted: boolean): void {
   safeSet(KEY_MUTED, muted ? '1' : '0');
 }
 
+const KEY_TUTORIAL = `${NS}tutorialDone`;
+
+export function getTutorialDone(): boolean {
+  return safeGet(KEY_TUTORIAL) === '1';
+}
+
+export function setTutorialDone(): void {
+  safeSet(KEY_TUTORIAL, '1');
+}
+
 export interface HighScores {
   classic: number;
   endless: number;

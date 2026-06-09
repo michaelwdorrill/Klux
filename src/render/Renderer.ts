@@ -38,6 +38,9 @@ export class Renderer {
   private vsDisconnectWin = false;
   private showHowToPlay = false;
   private autoPlay = false;
+  private tutorialText = '';
+  private tutorialAlpha = 0;
+  private tutorialHighlightPaddle = false;
   debugMode = false;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -132,6 +135,10 @@ export class Renderer {
       this.drawOverlay(state, w, h, layout.cellSize);
     }
 
+    if (this.tutorialAlpha > 0 && this.tutorialText) {
+      drawTutorialMessage(ctx, w, h, layout, this.tutorialText, this.tutorialAlpha);
+    }
+
     if (this.showHowToPlay) {
       drawHowToPlay(ctx, w, h);
     }
@@ -191,6 +198,11 @@ export class Renderer {
   setVsDisconnectWin(on: boolean): void { this.vsDisconnectWin = on; }
   setShowHowToPlay(on: boolean): void { this.showHowToPlay = on; }
   toggleHowToPlay(): void { this.showHowToPlay = !this.showHowToPlay; }
+  setTutorial(text: string, alpha: number, highlightPaddle = false): void {
+    this.tutorialText = text;
+    this.tutorialAlpha = alpha;
+    this.tutorialHighlightPaddle = highlightPaddle;
+  }
 
   private drawDebug(state: GameState, w: number): void {
     const { ctx } = this;
@@ -559,6 +571,19 @@ export class Renderer {
     const activeX = paddleOrigin.x + state.paddleLane * cellSize;
     ctx.fillStyle = PADDLE_ACTIVE;
     ctx.fillRect(activeX + 1, paddleOrigin.y + 2, cellSize - 2, cellSize - 4);
+
+    // Tutorial pulse glow on paddle
+    if (this.tutorialHighlightPaddle && this.tutorialAlpha > 0) {
+      const pulseAlpha = this.tutorialAlpha * (0.4 + 0.4 * Math.abs(Math.sin(performance.now() / 350)));
+      ctx.save();
+      ctx.globalAlpha = pulseAlpha;
+      ctx.shadowColor = '#9bd1ff';
+      ctx.shadowBlur = 18;
+      ctx.strokeStyle = '#9bd1ff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(activeX + 1, paddleOrigin.y + 2, cellSize - 2, cellSize - 4);
+      ctx.restore();
+    }
 
     // Show the TOP tile of the stack on the paddle bar
     if (state.paddle.length > 0) {
@@ -1110,6 +1135,52 @@ function drawDropIcons(
     ctx.arc(ix + size / 2, y, size / 2, 0, Math.PI * 2);
     ctx.fill();
   }
+}
+
+function drawTutorialMessage(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  layout: Layout,
+  text: string,
+  alpha: number,
+): void {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  const fontSize = Math.max(13, Math.min(18, layout.cellSize * 0.42));
+  ctx.font = `bold ${fontSize}px 'Segoe UI', system-ui, sans-serif`;
+  const lines = text.split('\n');
+  const lineH = fontSize * 1.45;
+  const maxW = lines.reduce((m, l) => Math.max(m, ctx.measureText(l).width), 0);
+  const padX = fontSize * 1.1;
+  const padY = fontSize * 0.75;
+  const pillW = maxW + padX * 2;
+  const pillH = lines.length * lineH + padY * 2;
+
+  // Position: just above the conveyor area
+  const cx = layout.conveyorOrigin.x + (layout.cellSize * layout.cols) / 2;
+  const cy = layout.conveyorOrigin.y - pillH / 2 - fontSize;
+
+  ctx.fillStyle = 'rgba(10,14,30,0.88)';
+  ctx.beginPath();
+  ctx.roundRect(cx - pillW / 2, cy - pillH / 2, pillW, pillH, pillH / 2);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(155,209,255,0.35)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = '#e8eeff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < lines.length; i++) {
+    const ly = cy - ((lines.length - 1) / 2 - i) * lineH;
+    ctx.fillText(lines[i], cx, ly);
+  }
+
+  ctx.restore();
+  void h; void w;
 }
 
 function drawHowToPlay(ctx: CanvasRenderingContext2D, w: number, h: number): void {
