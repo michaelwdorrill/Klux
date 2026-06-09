@@ -1,6 +1,7 @@
 import { VsClient } from '../vs/VsClient';
+import type { Difficulty } from '../core/types';
 
-type StartCallback = (matchId: string, seed: number, player: 'a' | 'b') => void;
+type StartCallback = (matchId: string, seed: number, player: 'a' | 'b', difficulty: Difficulty, myName: string) => void;
 
 export class VsLobby {
   private readonly overlay: HTMLElement;
@@ -10,6 +11,8 @@ export class VsLobby {
   private pendingMatch: { id: string; seed: number } | null = null;
   private resumeBtn: HTMLButtonElement | null = null;
   private createBtn: HTMLButtonElement | null = null;
+  private selectedDifficulty: Difficulty = 'normal';
+  private nameInput: HTMLInputElement | null = null;
 
   constructor() {
     this.overlay = this.build();
@@ -49,9 +52,28 @@ export class VsLobby {
     }
   }
 
-  private showView(view: 'main' | 'waiting' | 'join' | 'error'): void {
+  private showView(view: 'main' | 'waiting' | 'join' | 'error' | 'difficulty'): void {
     for (const el of this.overlay.querySelectorAll<HTMLElement>('[data-view]')) {
       el.style.display = el.dataset['view'] === view ? '' : 'none';
+    }
+  }
+
+  private async doCreate(difficulty: Difficulty): Promise<void> {
+    this.selectedDifficulty = difficulty;
+    const createBtn = this.createBtn;
+    try {
+      if (createBtn) {
+        createBtn.disabled = true;
+        createBtn.textContent = 'Creating…';
+      }
+      const { id, seed } = await this.client.create();
+      this.showWaiting(id, seed);
+    } catch {
+      if (createBtn) {
+        createBtn.disabled = false;
+        createBtn.textContent = 'CREATE MATCH';
+      }
+      this.showError('Could not create match. Try again.');
     }
   }
 
@@ -71,6 +93,23 @@ export class VsLobby {
       'color:#e0e0e0',
     ].join(';');
 
+    // Name input row
+    const nameRow = document.createElement('div');
+    nameRow.style.cssText = 'display:flex;align-items:center;gap:10px';
+    const nameLabel = document.createElement('span');
+    nameLabel.textContent = 'Your name:';
+    nameLabel.style.cssText = 'font-size:.85rem;color:rgba(180,180,200,0.8)';
+    const nameInput = document.createElement('input');
+    nameInput.maxLength = 3;
+    nameInput.value = localStorage.getItem('klux.v1.vsName') ?? '';
+    nameInput.style.cssText = 'width:64px;height:38px;font-size:1.4rem;font-weight:bold;text-align:center;text-transform:uppercase;background:#1a1a2e;color:#ffd166;border:2px solid #4a90d9;border-radius:6px;outline:none;letter-spacing:.15em';
+    nameInput.addEventListener('input', () => {
+      nameInput.value = nameInput.value.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 3);
+      localStorage.setItem('klux.v1.vsName', nameInput.value);
+    });
+    nameRow.append(nameLabel, nameInput);
+    this.nameInput = nameInput;
+
     const title = document.createElement('div');
     title.textContent = 'VS MODE';
     title.style.cssText = 'font-size:1.5rem;font-weight:bold;letter-spacing:.15em;color:#9bd1ff';
@@ -84,17 +123,8 @@ export class VsLobby {
     createBtn.textContent = 'CREATE MATCH';
     createBtn.style.cssText = btnStyle('#4a90d9');
     this.createBtn = createBtn;
-    createBtn.addEventListener('click', async () => {
-      try {
-        createBtn.disabled = true;
-        createBtn.textContent = 'Creating…';
-        const { id, seed } = await this.client.create();
-        this.showWaiting(id, seed);
-      } catch {
-        createBtn.disabled = false;
-        createBtn.textContent = 'CREATE MATCH';
-        this.showError('Could not create match. Try again.');
-      }
+    createBtn.addEventListener('click', () => {
+      this.showView('difficulty');
     });
 
     const orLine = document.createElement('div');
@@ -125,6 +155,39 @@ export class VsLobby {
     joinRow.append(joinBtn, cancelBtn);
 
     mainView.append(createBtn, orLine, joinRow, resumeBtn);
+
+    // ── Difficulty view ────────────────────────────────────────────────────
+    const diffView = document.createElement('div');
+    diffView.dataset['view'] = 'difficulty';
+    diffView.style.cssText = 'display:none;flex-direction:column;gap:12px;align-items:center;min-width:220px';
+
+    const diffTitle = document.createElement('div');
+    diffTitle.textContent = 'PICK DIFFICULTY';
+    diffTitle.style.cssText = 'font-size:1rem;font-weight:bold;letter-spacing:.1em;color:rgba(155,209,255,0.8)';
+
+    const mkDiffBtn = (diff: Difficulty, label: string, color: string) => {
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      btn.style.cssText = btnStyle(color) + ';min-width:220px';
+      btn.addEventListener('click', () => this.doCreate(diff));
+      return btn;
+    };
+    const normalBtn = mkDiffBtn('normal', 'NORMAL', 'rgba(6,214,160,0.3)');
+    normalBtn.style.border = '2px solid rgba(6,214,160,0.5)';
+    normalBtn.style.color = '#06d6a0';
+    const hardBtn = mkDiffBtn('hard', 'HARD', 'rgba(244,162,97,0.3)');
+    hardBtn.style.border = '2px solid rgba(244,162,97,0.5)';
+    hardBtn.style.color = '#f4a261';
+    const eliteBtn = mkDiffBtn('elite', 'ELITE', 'rgba(239,71,111,0.3)');
+    eliteBtn.style.border = '2px solid rgba(239,71,111,0.5)';
+    eliteBtn.style.color = '#ef476f';
+
+    const diffBackBtn = document.createElement('button');
+    diffBackBtn.textContent = 'Back';
+    diffBackBtn.style.cssText = ghostBtnStyle();
+    diffBackBtn.addEventListener('click', () => this.showView('main'));
+
+    diffView.append(diffTitle, normalBtn, hardBtn, eliteBtn, diffBackBtn);
 
     // ── Waiting view ──────────────────────────────────────────────────────
     const waitingView = document.createElement('div');
@@ -212,7 +275,7 @@ export class VsLobby {
         doJoinBtn.textContent = 'Joining…';
         const { id, seed, player } = await this.client.join(codeInput.value);
         this.hide();
-        this.onStart(id, seed, player);
+        this.onStart(id, seed, player, 'normal', nameInput.value || 'P2');
       } catch {
         doJoinBtn.disabled = false;
         doJoinBtn.textContent = 'JOIN';
@@ -246,7 +309,7 @@ export class VsLobby {
 
     errorView.append(errorMsg, errorBackBtn);
 
-    overlay.append(title, mainView, waitingView, joinView, errorView);
+    overlay.append(nameRow, title, mainView, diffView, waitingView, joinView, errorView);
     return overlay;
   }
 
@@ -262,7 +325,7 @@ export class VsLobby {
         this.pendingMatch = null;
         this.client.stopPolling();
         this.hide();
-        this.onStart(id, seed, 'a');
+        this.onStart(id, seed, 'a', this.selectedDifficulty, this.nameInput?.value || 'P1');
       }
     };
     this.client.startPolling();

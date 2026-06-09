@@ -1,3 +1,5 @@
+import type { GameMode, Difficulty } from './core/types';
+
 const API = 'https://klux-api.michaelwdorrill.workers.dev';
 
 export interface LeaderboardEntry {
@@ -6,8 +8,12 @@ export interface LeaderboardEntry {
   wave:  number;
 }
 
+export function leaderboardKey(mode: GameMode, difficulty: Difficulty): string {
+  return difficulty === 'normal' ? mode : `${mode}_${difficulty}`;
+}
+
 export async function postScore(
-  mode:  'classic' | 'endless',
+  mode:  string,
   name:  string,
   score: number,
   wave:  number,
@@ -20,7 +26,7 @@ export async function postScore(
 }
 
 export async function getTopScores(
-  mode:  'classic' | 'endless',
+  mode:  string,
   limit = 10,
 ): Promise<LeaderboardEntry[]> {
   try {
