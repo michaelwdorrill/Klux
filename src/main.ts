@@ -14,9 +14,11 @@ import type { Command } from './core/commands';
 import { loadHighScores, recordScore, getMuted, setMuted } from './persistence/store';
 import { NameEntry } from './ui/NameEntry';
 import { postScore, getTopScores, type LeaderboardEntry } from './leaderboard';
+import { VsLobby } from './ui/VsLobby';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const nameEntry = new NameEntry();
+const vsLobby = new VsLobby();
 const USE_3D = true;
 const renderer: Renderer = USE_3D ? new Renderer3D(canvas) : new Renderer(canvas);
 const audio = new Audio();
@@ -71,13 +73,50 @@ onScreenControls.setMuteHandler(() => {
 });
 onScreenControls.setMuteState(audio.isMuted);
 
-// Backtick toggles debug overlay; M toggles mute (and persists)
+const vsClient = vsLobby.getClient();
+vsClient.onEvent = (ev) => {
+  if (ev.type === 'power') {
+    const level = (ev.payload as { level: number }).level;
+    const cmd: Command =
+      level >= 4 ? { type: 'VS_NEGATIVE_TILES' } :
+      level >= 3 ? { type: 'VS_SPEED_BOOST' } :
+      level >= 2 ? { type: 'VS_EXTRA_SPAWN' } :
+                   { type: 'VS_LOCKED' };
+    input.inject(cmd);
+  } else if (ev.type === 'gameover') {
+    input.inject({ type: 'VS_WIN' });
+    vsClient.stopPolling();
+  } else if (ev.type === 'disconnect') {
+    input.inject({ type: 'VS_WIN' });
+    vsClient.stopPolling();
+  }
+};
+
+onScreenControls.setVsHandler(() => {
+  vsLobby.show((matchId, seed, player) => {
+    vsClient.matchId = matchId;
+    vsClient.player  = player;
+    vsClient.startPolling();
+    input.inject({ type: 'START_VS', seed });
+  });
+});
+
+// Backtick toggles debug overlay; M toggles mute; F fires VS power
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Backquote') renderer.debugMode = !renderer.debugMode;
   if (e.code === 'KeyM') {
     const muted = audio.toggleMute();
     setMuted(muted);
     onScreenControls.setMuteState(muted);
+  }
+  if (e.code === 'KeyF' && state.mode === 'versus' && state.phase === 'playing') {
+    input.inject({ type: 'FIRE_POWER' });
+  }
+});
+
+window.addEventListener('beforeunload', () => {
+  if (state.mode === 'versus' && state.phase === 'playing') {
+    vsClient.disconnect();
   }
 });
 
@@ -126,6 +165,14 @@ function frame(now: number): void {
 
   while (acc >= FIXED_MS) {
     const commands = [...input.drain(), ...extraCmds.splice(0)];
+    // Intercept FIRE_POWER to call vsClient and derive the level from current meter
+    for (const cmd of commands) {
+      if (cmd.type === 'FIRE_POWER' && state.mode === 'versus') {
+        const p = state.vsPowerMeter;
+        const level = p >= 6000 ? 4 : p >= 4500 ? 3 : p >= 3000 ? 2 : p >= 1500 ? 1 : 0;
+        if (level > 0) vsClient.fire(level);
+      }
+    }
     state = step(state, FIXED_MS, commands);
     acc -= FIXED_MS;
   }
@@ -153,29 +200,35 @@ function frame(now: number): void {
     audio.sfxWaveClear();
   }
 
-  // On game-over, record local best and show name-entry for leaderboard
+  // On game-over, record local best and show name-entry for leaderboard (non-VS only)
   if (state.phase === 'gameOver' && lastPhase !== 'gameOver') {
-    const isNewBest = recordScore(state.mode, state.score);
-    renderer.setNewBest(isNewBest);
-    renderer.setLeaderboard(null);
-    if (isNewBest) {
-      highScores = loadHighScores();
-      renderer.setHighScores(highScores);
+    if (state.mode === 'versus') {
+      vsClient.stopPolling();
+      renderer.setNewBest(false);
+      renderer.setLeaderboard(null);
+    } else {
+      const isNewBest = recordScore(state.mode, state.score);
+      renderer.setNewBest(isNewBest);
+      renderer.setLeaderboard(null);
+      if (isNewBest) {
+        highScores = loadHighScores();
+        renderer.setHighScores(highScores);
+      }
+      const capturedMode  = state.mode;
+      const capturedScore = state.score;
+      const capturedWave  = state.wave.index + 1;
+      nameEntry.show(async (name) => {
+        nameEntry.hide();
+        await postScore(capturedMode, name, capturedScore, capturedWave);
+        const [entries, c, e] = await Promise.all([
+          getTopScores(capturedMode, 10),
+          getTopScores('classic', 5),
+          getTopScores('endless', 5),
+        ]) as [LeaderboardEntry[], LeaderboardEntry[], LeaderboardEntry[]];
+        renderer.setLeaderboard(entries, capturedScore);
+        renderer.setTitleLeaderboard({ classic: c, endless: e });
+      });
     }
-    const capturedMode  = state.mode;
-    const capturedScore = state.score;
-    const capturedWave  = state.wave.index + 1;
-    nameEntry.show(async (name) => {
-      nameEntry.hide();
-      await postScore(capturedMode, name, capturedScore, capturedWave);
-      const [entries, c, e] = await Promise.all([
-        getTopScores(capturedMode, 10),
-        getTopScores('classic', 5),
-        getTopScores('endless', 5),
-      ]) as [LeaderboardEntry[], LeaderboardEntry[], LeaderboardEntry[]];
-      renderer.setLeaderboard(entries, capturedScore);
-      renderer.setTitleLeaderboard({ classic: c, endless: e });
-    });
   }
   if (state.phase === 'playing' && lastPhase !== 'playing') {
     renderer.setNewBest(false);
@@ -205,7 +258,7 @@ function frame(now: number): void {
 
   lastPhase = state.phase;
 
-  onScreenControls.update(state.phase);
+  onScreenControls.update(state.phase, state.mode, state.vsPowerMeter);
   renderer.draw(state, acc / FIXED_MS, pointerAdapter.hoveredLane);
   requestAnimationFrame(frame);
 }

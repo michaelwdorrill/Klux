@@ -61,7 +61,7 @@ export interface Wave {
 
 export type Phase = 'title' | 'playing' | 'waveClear' | 'paused' | 'gameOver';
 
-export type GameMode = 'classic' | 'endless';
+export type GameMode = 'classic' | 'endless' | 'versus';
 
 export interface KluxLine {
   tiles: Array<{ row: number; col: number }>;
@@ -107,4 +107,10 @@ export interface GameState {
   fx: FxState;
   /** Total KLUX lines made — drives the speed tier in endless mode. */
   kluxCount: number;
+
+  // VS-only state (always present, unused in other modes)
+  vsPowerMeter:    number;  // 0–6000; charges from score, reset on fire
+  vsSpeedBoost:    number;  // ms remaining of opponent-inflicted 2× fall speed
+  vsNegativeCount: number;  // next N spawned tiles forced negative
+  vsWon:           boolean; // true when opponent's gameover event received
 }

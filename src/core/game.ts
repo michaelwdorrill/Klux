@@ -26,12 +26,19 @@ function spawnTile(state: GameState): GameState {
   // Roll for special type in priority order (rarest first)
   const roll = Math.random();
   let cumulative = 0;
-  const tileType: Tile['type'] =
+  let tileType: Tile['type'] =
     roll < (cumulative += config.wildChance)    ? 'wild'     :
     roll < (cumulative += config.lockedChance)  ? 'locked'   :
     roll < (cumulative += config.doubleChance)  ? 'double'   :
     roll < (cumulative += config.negativeChance)? 'negative' :
     'normal';
+
+  // VS power 4: opponent cursed the next N tiles to be negative
+  let vsNegativeCount = state.vsNegativeCount;
+  if (vsNegativeCount > 0 && tileType === 'normal') {
+    tileType = 'negative';
+    vsNegativeCount--;
+  }
 
   const tile = newTile(nextInt(rng, 0, config.colorCount), tileType);
   const lane = nextInt(rng, 0, config.cols);
@@ -53,6 +60,7 @@ function spawnTile(state: GameState): GameState {
     ...state,
     conveyor: [...state.conveyor, falling],
     tilesFedThisWave: state.tilesFedThisWave + 1,
+    vsNegativeCount,
     spawnTimer: interval,
   };
 }
@@ -81,12 +89,17 @@ function resolveMatches(state: GameState): GameState {
     else if (goal === 'SCORE') progress = current.score + points;
 
     const newScore = Math.max(0, current.score + points);
+    // VS: positive KLUXes charge the power meter; negative ones drain it
+    const newPower = current.mode === 'versus'
+      ? Math.max(0, Math.min(6000, current.vsPowerMeter + points))
+      : current.vsPowerMeter;
     current = {
       ...current,
       well: clearCells(current.well, positions),
       score: newScore,
       waveProgress: goal === 'SCORE' ? newScore : progress,
       kluxCount: current.kluxCount + lines.length,
+      vsPowerMeter: newPower,
     };
   }
 
@@ -120,6 +133,31 @@ function applyCommand(state: GameState, cmd: Command): GameState {
   if (cmd.type === 'START_ENDLESS' && (state.phase === 'title' || state.phase === 'gameOver')) {
     return startGame(state.config, 'endless');
   }
+  if (cmd.type === 'START_VS') {
+    return startGame({ ...state.config, seed: cmd.seed }, 'versus');
+  }
+
+  // VS effects injected by opponent's power use
+  if (cmd.type === 'VS_WIN') {
+    return { ...state, phase: 'gameOver', vsWon: true };
+  }
+  if (cmd.type === 'FIRE_POWER' && state.mode === 'versus') {
+    return { ...state, vsPowerMeter: 0 };
+  }
+  if (cmd.type === 'VS_LOCKED' && state.phase === 'playing') {
+    const lane = nextInt(state.rng, 0, state.config.cols);
+    const tile = newTile(nextInt(state.rng, 0, state.config.colorCount), 'locked');
+    return { ...state, conveyor: [...state.conveyor, { tile, lane, progress: 0 }] };
+  }
+  if (cmd.type === 'VS_EXTRA_SPAWN' && state.phase === 'playing') {
+    return spawnTile(state);
+  }
+  if (cmd.type === 'VS_SPEED_BOOST' && state.phase === 'playing') {
+    return { ...state, vsSpeedBoost: 10_000 };
+  }
+  if (cmd.type === 'VS_NEGATIVE_TILES' && state.phase === 'playing') {
+    return { ...state, vsNegativeCount: 3 };
+  }
   if (state.phase === 'waveClear' || state.phase === 'gameOver' || state.phase === 'title') {
     if (cmd.type === 'CONFIRM') return handleConfirm(state);
     return state;
@@ -149,6 +187,8 @@ function applyCommand(state: GameState, cmd: Command): GameState {
     case 'START_CLASSIC':
     case 'START_ENDLESS':
       return state; // handled above
+    default:
+      return state;
   }
 }
 
@@ -249,6 +289,10 @@ export function startGame(config: GameConfig, mode: GameMode = 'classic'): GameS
     rng,
     fx: { clears: [], chainStep: 0, caught: false },
     kluxCount: 0,
+    vsPowerMeter:    0,
+    vsSpeedBoost:    0,
+    vsNegativeCount: 0,
+    vsWon:           false,
   };
 }
 
@@ -277,9 +321,12 @@ export function step(state: GameState, dtMs: number, commands: Command[]): GameS
     spawnTimer = s.spawnTimer;
   }
 
-  // Advance conveyor
+  // Advance conveyor — double speed during VS speed boost
+  let vsSpeedBoost = s.vsSpeedBoost;
   const travel = travelMs(s.tilesFedThisWave, s.config.baseTravelMs, s.config.minTravelMs, s.config.rampPerTile);
-  const progressDelta = dtMs / travel;
+  const effectiveTravelMs = vsSpeedBoost > 0 ? travel / 2 : travel;
+  if (vsSpeedBoost > 0) vsSpeedBoost = Math.max(0, vsSpeedBoost - dtMs);
+  const progressDelta = dtMs / effectiveTravelMs;
 
   const nextConveyor: FallingTile[] = [];
   let drops = s.dropsRemaining;
@@ -317,6 +364,7 @@ export function step(state: GameState, dtMs: number, commands: Command[]): GameS
     dropsRemaining: Math.max(0, drops),
     spawnTimer,
     waveProgress,
+    vsSpeedBoost,
     fx: { ...s.fx, lastFoul: foul, caught },
     phase: gameOver ? 'gameOver' : s.phase,
   };
