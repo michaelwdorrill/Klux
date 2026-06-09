@@ -158,11 +158,20 @@ async function fetchTitleLeaderboard(): Promise<void> {
 // Pre-fetch on load so the title screen shows it immediately
 fetchTitleLeaderboard().catch(() => {});
 
+let pausedByHide = false;
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && state.phase === 'playing') {
-    state = { ...state, phase: 'paused' };
+  if (document.hidden) {
+    if (state.phase === 'playing') {
+      state = { ...state, phase: 'paused' };
+      pausedByHide = true;
+    }
+  } else {
+    last = performance.now();
+    if (pausedByHide && state.phase === 'paused') {
+      state = { ...state, phase: 'playing' };
+    }
+    pausedByHide = false;
   }
-  if (!document.hidden) last = performance.now();
 });
 
 function frame(now: number): void {

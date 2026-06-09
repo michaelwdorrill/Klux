@@ -93,7 +93,7 @@ export class VsClient {
       if (ev.player === this.player) continue;
       if (ev.type === 'board') {
         const p = ev.payload as { well: number[][]; drops: number; power: number };
-        this.opponentWell  = p.well;
+        this.opponentWell  = Array.isArray(p.well) ? p.well : [];
         this.opponentDrops = p.drops;
         this.opponentPower = p.power ?? 0;
         this.boardEventCount++;

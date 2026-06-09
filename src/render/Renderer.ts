@@ -174,7 +174,7 @@ export class Renderer {
   }
 
   setOpponentState(well: number[][], drops: number, power = 0, eventCount = 0): void {
-    this.opponentWell       = well;
+    this.opponentWell       = Array.isArray(well) ? well : [];
     this.opponentDrops      = drops;
     this.opponentPower      = power;
     this.opponentEventCount = eventCount;
