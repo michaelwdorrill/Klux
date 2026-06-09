@@ -1,5 +1,6 @@
 export type Color = number; // 0..colorCount-1
 export type TileType = 'normal' | 'wild' | 'double' | 'locked' | 'negative';
+export type Difficulty = 'normal' | 'hard' | 'elite';
 
 /**
  * Per-orientation score tables indexed by run length:
@@ -34,6 +35,7 @@ export interface GameConfig {
   lockedChance:  number; // probability a spawned tile is locked   (e.g. 0.02)
   negativeChance:number; // probability a spawned tile is negative (e.g. 0.025)
   seed?: number;
+  difficulty: Difficulty;
 }
 
 export interface Tile {
@@ -108,6 +110,9 @@ export interface GameState {
   fx: FxState;
   /** Total KLUX lines made — drives the speed tier in endless mode. */
   kluxCount: number;
+
+  /** Cumulative tiles fed since game start — never resets; used for first-20 normal-only guard. */
+  totalTilesFed: number;
 
   // VS-only state (always present, unused in other modes)
   vsPowerMeter:    number;  // 0–6000; charges from score, reset on fire

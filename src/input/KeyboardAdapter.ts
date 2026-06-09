@@ -64,10 +64,10 @@ export class KeyboardAdapter implements InputAdapter {
         return { type: 'CONFIRM' };
       case 'Digit1':
       case 'Numpad1':
-        return { type: 'START_CLASSIC' };
+        return { type: 'START_CLASSIC', difficulty: 'normal' };
       case 'Digit2':
       case 'Numpad2':
-        return { type: 'START_ENDLESS' };
+        return { type: 'START_ENDLESS', difficulty: 'normal' };
       default:
         return null;
     }
