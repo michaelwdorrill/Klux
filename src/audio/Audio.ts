@@ -45,6 +45,9 @@ export class Audio {
 
   // ── Lifecycle ────────────────────────────────────────────────────
 
+  /** True once the AudioContext is running (either via autoplay or user gesture). */
+  get isUnlocked(): boolean { return this.ctx?.state === 'running'; }
+
   /** Call on the first user gesture to satisfy browser autoplay policy. */
   unlock(): void {
     if (this.ctx) {
@@ -64,6 +67,28 @@ export class Audio {
     void this.decodePendingSfx();
 
     if (this.musicBuffer && !this.musicPlaying) this.startMusicInternal();
+  }
+
+  /** Attempt silent autoplay — resolves true if audio started, false if blocked. */
+  async tryAutoplay(): Promise<boolean> {
+    try {
+      if (!this.ctx) {
+        this.ctx = new AudioContext();
+        this.master = this.ctx.createGain();
+        this.master.gain.value = this.muted ? 0 : 1;
+        this.master.connect(this.ctx.destination);
+        this.musicGain = this.ctx.createGain();
+        this.musicGain.gain.value = MUSIC_VOLUME;
+        this.musicGain.connect(this.master);
+        void this.decodePendingSfx();
+      }
+      if (this.ctx.state === 'suspended') await this.ctx.resume();
+      if (this.ctx.state === 'running') {
+        if (this.musicBuffer && !this.musicPlaying) this.startMusicInternal();
+        return true;
+      }
+    } catch { /* blocked */ }
+    return false;
   }
 
   /** Load the background music file. Silently no-ops if missing or on error. */
