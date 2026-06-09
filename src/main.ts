@@ -51,8 +51,6 @@ function applyCanvasSize(): void {
 applyCanvasSize();
 window.addEventListener('resize', applyCanvasSize);
 window.addEventListener('orientationchange', applyCanvasSize);
-// Re-measure when #osc shows/hides (changes canvas's flex height without a window resize)
-new ResizeObserver(() => renderer.resize()).observe(canvas);
 
 // Auto-reload when a new service worker takes over so the PWA gets the latest build
 navigator.serviceWorker?.addEventListener('controllerchange', () => window.location.reload());
