@@ -38,6 +38,10 @@ export class NameEntry {
     const inputView = document.createElement('div');
     inputView.style.cssText = [
       'display:flex',
+      'position:fixed',
+      'top:80px',
+      'left:50%',
+      'transform:translateX(-50%)',
       'flex-direction:column',
       'align-items:center',
       'gap:18px',
@@ -45,6 +49,7 @@ export class NameEntry {
       'border-radius:14px',
       'padding:28px 32px',
       'pointer-events:all',
+      'z-index:201',
     ].join(';');
 
     const title = document.createElement('div');
@@ -118,13 +123,18 @@ export class NameEntry {
     const resultsView = document.createElement('div');
     resultsView.style.cssText = [
       'display:none',
+      'position:fixed',
+      'bottom:80px',
+      'left:50%',
+      'transform:translateX(-50%)',
       'flex-direction:column',
       'align-items:center',
       'gap:12px',
-      'background:rgba(10,12,24,0.88)',
+      'background:rgba(10,12,24,0.92)',
       'border-radius:14px',
-      'padding:22px 32px',
+      'padding:18px 32px',
       'pointer-events:all',
+      'z-index:201',
     ].join(';');
 
     const resultsTitle = document.createElement('div');
