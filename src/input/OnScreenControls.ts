@@ -34,7 +34,10 @@ export class OnScreenControls implements InputAdapter {
   }
 
   private isTouchLike(): boolean {
-    return navigator.maxTouchPoints > 0 || !matchMedia('(pointer: fine)').matches;
+    // True on phones/tablets (primary input is touch, no mouse hover).
+    // Touch-screen laptops match maxTouchPoints > 0 but also have a fine
+    // pointer (mouse), so the combined check excludes them.
+    return matchMedia('(hover: none) and (pointer: coarse)').matches;
   }
 
   attach(emit: (cmd: Command) => void): void {
