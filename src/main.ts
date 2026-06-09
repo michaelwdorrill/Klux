@@ -381,9 +381,9 @@ function frame(now: number): void {
     if (tutStep === 2 && state.fx.tileDropped) tutAdvance(3);
     if (tutStep === 3 && state.fx.clears.length > 0) tutAdvance(4);
     const msg = tutMessage(tutStep as TutStep);
-    renderer.setTutorial(msg, tutAlpha, tutStep === 1);
+    renderer.setTutorial(msg, tutAlpha);
   } else if (state.phase !== 'playing') {
-    renderer.setTutorial('', 0, false);
+    renderer.setTutorial('', 0);
   }
 
   // Per-frame SFX (catch + foul). Klux/Wow handled per-clear below.
