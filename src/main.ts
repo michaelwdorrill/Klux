@@ -104,6 +104,10 @@ onScreenControls.setVsHandler(() => {
     vsClient.player  = player;
     wireVsEvents();          // restore handler after lobby overwrites it
     vsClient.startPolling();
+    // Force state to title first so START_VS is always accepted from any phase
+    if (state.phase !== 'title' && state.phase !== 'gameOver') {
+      state = { ...state, phase: 'gameOver' };
+    }
     input.inject({ type: 'START_VS', seed });
   });
 });
