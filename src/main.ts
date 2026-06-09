@@ -129,6 +129,7 @@ let waveClearEnteredAt: number | null = null;
 let lastSpeedTier = -1;
 let lastPhase = state.phase;
 let titleLeaderboardFetched = false;
+let vsBoardSyncTimer = 0;
 
 async function fetchTitleLeaderboard(): Promise<void> {
   const [classic, endless] = await Promise.all([
@@ -200,10 +201,22 @@ function frame(now: number): void {
     audio.sfxWaveClear();
   }
 
+  // Board sync for VS — send well state to opponent every ~750ms
+  if (state.mode === 'versus' && state.phase === 'playing') {
+    vsBoardSyncTimer -= FIXED_MS;
+    if (vsBoardSyncTimer <= 0) {
+      vsBoardSyncTimer = 750;
+      const encoded = state.well.map(row => row.map(cell => cell ? cell.color : -1));
+      vsClient.sendBoard(encoded, state.dropsRemaining);
+    }
+  } else {
+    vsBoardSyncTimer = 0;
+  }
+
   // On game-over, record local best and show name-entry for leaderboard (non-VS only)
   if (state.phase === 'gameOver' && lastPhase !== 'gameOver') {
     if (state.mode === 'versus') {
-      vsClient.stopPolling();
+      vsClient.gameover(state.score);   // notify opponent so they get VS_WIN
       renderer.setNewBest(false);
       renderer.setLeaderboard(null);
     } else {
@@ -259,6 +272,9 @@ function frame(now: number): void {
   lastPhase = state.phase;
 
   onScreenControls.update(state.phase, state.mode, state.vsPowerMeter);
+  if (state.mode === 'versus') {
+    renderer.setOpponentState(vsClient.opponentWell, vsClient.opponentDrops);
+  }
   renderer.draw(state, acc / FIXED_MS, pointerAdapter.hoveredLane);
   requestAnimationFrame(frame);
 }

@@ -6,6 +6,9 @@ export class VsLobby {
   private readonly overlay: HTMLElement;
   private readonly client = new VsClient();
   private onStart: StartCallback = () => {};
+  /** Pending match that hasn't started yet (player A waiting for B). */
+  private pendingMatch: { id: string; seed: number } | null = null;
+  private resumeBtn: HTMLButtonElement | null = null;
 
   constructor() {
     this.overlay = this.build();
@@ -16,13 +19,28 @@ export class VsLobby {
 
   show(onStart: StartCallback): void {
     this.onStart = onStart;
-    this.showView('main');
+    if (this.pendingMatch) {
+      // Resume the waiting view with the same code
+      this.showWaiting(this.pendingMatch.id, this.pendingMatch.seed);
+    } else {
+      this.showView('main');
+    }
     this.overlay.style.display = 'flex';
+    this.updateResumeBtn();
   }
 
   hide(): void {
     this.overlay.style.display = 'none';
-    this.client.stopPolling();
+    // Don't stop polling or clear pendingMatch — player may reopen to check
+  }
+
+  private updateResumeBtn(): void {
+    if (this.resumeBtn) {
+      this.resumeBtn.style.display = this.pendingMatch ? '' : 'none';
+      if (this.pendingMatch) {
+        this.resumeBtn.textContent = `RESUME (${this.pendingMatch.id})`;
+      }
+    }
   }
 
   private showView(view: 'main' | 'waiting' | 'join' | 'error'): void {
@@ -81,12 +99,21 @@ export class VsLobby {
     joinBtn.style.cssText = btnStyle('#06d6a0');
     joinBtn.addEventListener('click', () => this.showView('join'));
 
+    // Resume button — shown only when a pending match exists
+    const resumeBtn = document.createElement('button');
+    resumeBtn.textContent = 'RESUME';
+    resumeBtn.style.cssText = btnStyle('#f4a261') + ';display:none';
+    resumeBtn.addEventListener('click', () => {
+      if (this.pendingMatch) this.showWaiting(this.pendingMatch.id, this.pendingMatch.seed);
+    });
+    this.resumeBtn = resumeBtn;
+
     const cancelBtn = document.createElement('button');
     cancelBtn.textContent = 'Back';
     cancelBtn.style.cssText = ghostBtnStyle();
     cancelBtn.addEventListener('click', () => this.hide());
 
-    mainView.append(createBtn, orLine, joinBtn, cancelBtn);
+    mainView.append(createBtn, orLine, joinBtn, resumeBtn, cancelBtn);
 
     // ── Waiting view ──────────────────────────────────────────────────────
     const waitingView = document.createElement('div');
@@ -115,15 +142,22 @@ export class VsLobby {
     waitStatus.textContent = 'Waiting for opponent…';
     waitStatus.style.cssText = 'font-size:.85rem;color:rgba(180,180,200,0.6)';
 
+    const hideWaitBtn = document.createElement('button');
+    hideWaitBtn.textContent = 'Hide (keep waiting)';
+    hideWaitBtn.style.cssText = ghostBtnStyle();
+    hideWaitBtn.addEventListener('click', () => this.hide());
+
     const cancelWaitBtn = document.createElement('button');
-    cancelWaitBtn.textContent = 'Cancel';
-    cancelWaitBtn.style.cssText = ghostBtnStyle();
+    cancelWaitBtn.textContent = 'Cancel match';
+    cancelWaitBtn.style.cssText = 'background:transparent;color:rgba(220,80,80,0.6);border:1px solid rgba(220,80,80,0.25);border-radius:6px;padding:5px 18px;font-size:.8rem;cursor:pointer';
     cancelWaitBtn.addEventListener('click', () => {
+      this.pendingMatch = null;
       this.client.stopPolling();
       this.showView('main');
+      this.updateResumeBtn();
     });
 
-    waitingView.append(waitLabel, codeDisplay, waitStatus, cancelWaitBtn);
+    waitingView.append(waitLabel, codeDisplay, waitStatus, hideWaitBtn, cancelWaitBtn);
 
     // ── Join view ─────────────────────────────────────────────────────────
     const joinView = document.createElement('div');
@@ -206,6 +240,7 @@ export class VsLobby {
   }
 
   private showWaiting(id: string, seed: number): void {
+    this.pendingMatch = { id, seed };
     const codeEl = this.overlay.querySelector('#vs-code');
     if (codeEl) codeEl.textContent = id;
     this.showView('waiting');
@@ -213,6 +248,7 @@ export class VsLobby {
     // Poll for the 'joined' event from player B
     this.client.onEvent = (ev) => {
       if (ev.type === 'joined') {
+        this.pendingMatch = null;
         this.client.stopPolling();
         this.hide();
         this.onStart(id, seed, 'a');

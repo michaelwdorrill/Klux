@@ -30,6 +30,8 @@ export class Renderer {
   private leaderboard: LeaderboardEntry[] | null = null;
   private leaderboardPlayerScore = 0;
   private titleLeaderboard: { classic: LeaderboardEntry[]; endless: LeaderboardEntry[] } | null = null;
+  private opponentWell: number[][] = [];
+  private opponentDrops = -1;
   debugMode = false;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -128,6 +130,11 @@ export class Renderer {
 
   setTitleLeaderboard(data: { classic: LeaderboardEntry[]; endless: LeaderboardEntry[] } | null): void {
     this.titleLeaderboard = data;
+  }
+
+  setOpponentState(well: number[][], drops: number): void {
+    this.opponentWell  = well;
+    this.opponentDrops = drops;
   }
 
   private drawDebug(state: GameState, w: number): void {
@@ -593,11 +600,23 @@ export class Renderer {
       drawDropIcons(ctx, state.dropsRemaining, state.config.maxDrops, w - pad, hudY + hudH * 0.5, fontSize * 1.2, 'right');
 
       if (state.mode === 'versus') {
-        const barW = Math.min(180, w * 0.38);
+        // Power meter — left half of bottom bar
+        const barW = Math.min(160, w * 0.33);
         const barH = 8;
-        const barX = (w - barW) / 2;
+        const barX = pad;
         const barY = hudY + hudH - barH - 6;
         drawPowerMeter(ctx, barX, barY, barW, barH, state.vsPowerMeter, fontSize);
+
+        // Opponent mini-board — right side of bottom bar
+        if (this.opponentWell.length > 0) {
+          const rows = this.opponentWell.length;
+          const cols = this.opponentWell[0]?.length ?? 5;
+          const cellH = (hudH - 14) / rows;
+          const cellW = cellH * 0.8;
+          const bx = w - pad - cols * cellW;
+          const by = hudY + 6;
+          drawMiniBoard(ctx, bx, by, cellW, cellH, this.opponentWell, this.opponentDrops, state.config.maxDrops, fontSize);
+        }
       }
     } else {
       // Right panel in landscape
@@ -679,6 +698,24 @@ export class Renderer {
         const barH = 10;
         drawPowerMeter(ctx, hudX + pad, y, barW, barH, state.vsPowerMeter, fontSize);
         y += barH + fontSize + 16;
+
+        // Opponent mini-board
+        if (this.opponentWell.length > 0) {
+          ctx.fillStyle = TEXT_DIM;
+          ctx.font = `${fontSize - 1}px 'Segoe UI', system-ui, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText('OPPONENT', cx, y);
+          y += fontSize + 4;
+
+          const rows = this.opponentWell.length;
+          const cols = this.opponentWell[0]?.length ?? 5;
+          const cellW = Math.min(14, (hudW - pad * 2) / cols);
+          const cellH = cellW * 1.1;
+          const bx = cx - (cols * cellW) / 2;
+          drawMiniBoard(ctx, bx, y, cellW, cellH, this.opponentWell, this.opponentDrops, state.config.maxDrops, fontSize);
+          y += rows * cellH + 12;
+        }
       }
 
       // Stack panel in landscape HUD
@@ -698,6 +735,58 @@ export class Renderer {
         }
       }
     }
+  }
+}
+
+function drawMiniBoard(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number,
+  cellW: number, cellH: number,
+  well: number[][],
+  drops: number,
+  maxDrops: number,
+  fontSize: number,
+): void {
+  const rows = well.length;
+  const cols = well[0]?.length ?? 0;
+  const totalW = cols * cellW;
+  const totalH = rows * cellH;
+
+  // Background
+  ctx.fillStyle = 'rgba(5,8,20,0.7)';
+  ctx.fillRect(x - 1, y - 1, totalW + 2, totalH + 2);
+
+  for (let r = 0; r < rows; r++) {
+    const drawRow = rows - 1 - r; // row 0 = bottom of well → drawn at bottom
+    for (let c = 0; c < cols; c++) {
+      const color = well[r]?.[c] ?? -1;
+      const cx2 = x + c * cellW;
+      const cy2 = y + drawRow * cellH;
+      if (color >= 0 && color < FILL_COLORS.length) {
+        ctx.fillStyle = FILL_COLORS[color]!;
+        ctx.fillRect(cx2 + 0.5, cy2 + 0.5, cellW - 1, cellH - 1);
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.04)';
+        ctx.fillRect(cx2 + 0.5, cy2 + 0.5, cellW - 1, cellH - 1);
+      }
+    }
+  }
+
+  // Drops remaining indicator below the board
+  if (drops >= 0) {
+    const dropSize = Math.max(4, cellW * 0.55);
+    const gap = 2;
+    const iconY = y + totalH + 4;
+    const totalIconW = maxDrops * (dropSize + gap) - gap;
+    let ix = x + (totalW - totalIconW) / 2;
+    for (let i = 0; i < maxDrops; i++) {
+      ctx.fillStyle = i < drops ? '#e63946' : 'rgba(255,255,255,0.1)';
+      ctx.beginPath();
+      ctx.arc(ix + dropSize / 2, iconY + dropSize / 2, dropSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ix += dropSize + gap;
+    }
+    void fontSize;
   }
 }
 
