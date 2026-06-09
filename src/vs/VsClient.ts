@@ -23,6 +23,11 @@ export class VsClient {
 
   /** Called for every non-board event that arrives from the opponent. */
   onEvent: (ev: VsEvent) => void = () => {};
+  /** Called when no opponent events arrive for ~8 s after the first board sync. */
+  onStaleDisconnect: () => void = () => {};
+
+  private lastOpponentEventAt = 0;
+  private stalePollCount = 0;
 
   async create(): Promise<{ id: string; seed: number; player: 'a' }> {
     const r = await fetch(`${API}/vs/create`, { method: 'POST' });
@@ -81,6 +86,8 @@ export class VsClient {
     this.opponentDrops = -1;
     this.opponentPower = 0;
     this.boardEventCount = 0;
+    this.lastOpponentEventAt = 0;
+    this.stalePollCount = 0;
   }
 
   private async poll(): Promise<void> {
@@ -88,9 +95,11 @@ export class VsClient {
       `${API}/vs/poll/${this.matchId}?since=${this.lastEventId}`,
     );
     const events = await r.json() as VsEvent[];
+    let gotOpponentEvent = false;
     for (const ev of events) {
       this.lastEventId = Math.max(this.lastEventId, ev.id);
       if (ev.player === this.player) continue;
+      gotOpponentEvent = true;
       // Worker stores payload as a JSON string in D1; parse it back if needed
       if (typeof ev.payload === 'string') {
         try { ev.payload = JSON.parse(ev.payload); } catch { /* leave as-is */ }
@@ -103,6 +112,21 @@ export class VsClient {
         this.boardEventCount++;
       } else {
         this.onEvent(ev);
+      }
+    }
+
+    // Stale-disconnect detection: after first board sync, if 8 consecutive
+    // polls return no opponent events, the opponent has likely disconnected.
+    if (this.lastOpponentEventAt === 0 && this.boardEventCount > 0) {
+      this.lastOpponentEventAt = Date.now();
+    }
+    if (gotOpponentEvent) {
+      this.stalePollCount = 0;
+    } else if (this.lastOpponentEventAt > 0) {
+      this.stalePollCount++;
+      if (this.stalePollCount >= 8) {
+        this.stalePollCount = 0;
+        this.onStaleDisconnect();
       }
     }
   }

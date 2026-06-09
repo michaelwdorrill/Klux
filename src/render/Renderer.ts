@@ -35,6 +35,8 @@ export class Renderer {
   private opponentPower = 0;
   private opponentEventCount = 0;
   private curseTimer = 0;
+  private vsDisconnectWin = false;
+  private showHowToPlay = false;
   private autoPlay = false;
   debugMode = false;
 
@@ -130,6 +132,10 @@ export class Renderer {
       this.drawOverlay(state, w, h, layout.cellSize);
     }
 
+    if (this.showHowToPlay) {
+      drawHowToPlay(ctx, w, h);
+    }
+
     if (this.debugMode) {
       this.drawDebug(state, w);
     }
@@ -182,6 +188,9 @@ export class Renderer {
 
   triggerCurse(): void { this.curseTimer = 2200; }
   setAutoPlay(on: boolean): void { this.autoPlay = on; }
+  setVsDisconnectWin(on: boolean): void { this.vsDisconnectWin = on; }
+  setShowHowToPlay(on: boolean): void { this.showHowToPlay = on; }
+  toggleHowToPlay(): void { this.showHowToPlay = !this.showHowToPlay; }
 
   private drawDebug(state: GameState, w: number): void {
     const { ctx } = this;
@@ -240,6 +249,10 @@ export class Renderer {
       ctx.fillText('Tap a button below · keys 1 / 2 also work', cx, cy + subSize * 3.1);
       ctx.fillText('Arrows / WASD · Space = drop · P = pause', cx, cy + subSize * 4.0);
 
+      ctx.fillStyle = 'rgba(155,209,255,0.45)';
+      ctx.font = `${subSize * 0.72}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.fillText('? — How to play', cx, cy + subSize * 5.0);
+
       // Global leaderboards: two compact columns below the controls hint
       if (this.titleLeaderboard) {
         const lbY = cy + subSize * 5.4;
@@ -292,6 +305,11 @@ export class Renderer {
         ctx.fillStyle = state.vsWon ? '#06d6a0' : '#e63946';
         ctx.font = `bold ${titleSize * 1.2}px 'Segoe UI', system-ui, sans-serif`;
         ctx.fillText(state.vsWon ? 'YOU WIN!' : 'YOU LOSE!', cx, cy - subSize * 3.0);
+        if (state.vsWon && this.vsDisconnectWin) {
+          ctx.fillStyle = 'rgba(155,209,255,0.65)';
+          ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
+          ctx.fillText('Opponent disconnected', cx, cy - subSize * 1.9);
+        }
       } else {
         ctx.fillStyle = '#e63946';
         ctx.font = `bold ${titleSize}px 'Segoe UI', system-ui, sans-serif`;
@@ -804,10 +822,11 @@ function drawOpponentPanel(
   const boardH = (hasData ? rows : 10) * cellH;
   const powerBarH = 5;
   const labelH = 12;
-  const dropH = 8;
+  const dropR = Math.max(3, cellW * 0.3);
+  const dropRowH = dropR * 2 + 5;
   const panelW = boardW + panelPad * 2;
   const panelH = hasData
-    ? labelH + 4 + boardH + 4 + powerBarH + 4 + dropH + panelPad
+    ? labelH + 4 + boardH + 4 + dropRowH + powerBarH + panelPad
     : labelH + 4 + 24 + panelPad;
 
   // Position: to the LEFT of the playfield so it's never behind the HUD
@@ -845,11 +864,27 @@ function drawOpponentPanel(
     return;
   }
 
-  // Mini board
-  drawMiniBoard(ctx, panelX + panelPad, y, cellW, cellH, opponentWell, opponentDrops, maxDrops, 9);
+  // Mini board (no drops — drawn separately below for correct ordering)
+  drawMiniBoard(ctx, panelX + panelPad, y, cellW, cellH, opponentWell, 9);
   y += boardH + 4;
 
-  // Opponent power bar
+  // Drops below board
+  if (opponentDrops >= 0) {
+    const dropR = Math.max(3, cellW * 0.3);
+    const dropGap = 3;
+    const totalDropW = maxDrops * (dropR * 2 + dropGap) - dropGap;
+    let ix = panelX + panelPad + (boardW - totalDropW) / 2;
+    for (let i = 0; i < maxDrops; i++) {
+      ctx.fillStyle = i < opponentDrops ? '#e63946' : 'rgba(255,255,255,0.1)';
+      ctx.beginPath();
+      ctx.arc(ix + dropR, y + dropR, dropR, 0, Math.PI * 2);
+      ctx.fill();
+      ix += dropR * 2 + dropGap;
+    }
+    y += dropR * 2 + 5;
+  }
+
+  // Power bar below drops
   const MAX_POWER = 6000;
   const powerFill = Math.min(1, opponentPower / MAX_POWER);
   const oppLevel = opponentPower >= 6000 ? 4 : opponentPower >= 4500 ? 3 : opponentPower >= 3000 ? 2 : opponentPower >= 1500 ? 1 : 0;
@@ -929,9 +964,7 @@ function drawMiniBoard(
   x: number, y: number,
   cellW: number, cellH: number,
   well: number[][],
-  drops: number,
-  maxDrops: number,
-  fontSize: number,
+  _fontSize: number,
 ): void {
   const rows = well.length;
   const cols = well[0]?.length ?? 0;
@@ -956,23 +989,6 @@ function drawMiniBoard(
         ctx.fillRect(cx2 + 0.5, cy2 + 0.5, cellW - 1, cellH - 1);
       }
     }
-  }
-
-  // Drops remaining indicator below the board
-  if (drops >= 0) {
-    const dropSize = Math.max(4, cellW * 0.55);
-    const gap = 2;
-    const iconY = y + totalH + 4;
-    const totalIconW = maxDrops * (dropSize + gap) - gap;
-    let ix = x + (totalW - totalIconW) / 2;
-    for (let i = 0; i < maxDrops; i++) {
-      ctx.fillStyle = i < drops ? '#e63946' : 'rgba(255,255,255,0.1)';
-      ctx.beginPath();
-      ctx.arc(ix + dropSize / 2, iconY + dropSize / 2, dropSize / 2, 0, Math.PI * 2);
-      ctx.fill();
-      ix += dropSize + gap;
-    }
-    void fontSize;
   }
 }
 
@@ -1087,4 +1103,126 @@ function drawDropIcons(
     ctx.arc(ix + size / 2, y, size / 2, 0, Math.PI * 2);
     ctx.fill();
   }
+}
+
+function drawHowToPlay(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  ctx.save();
+
+  // Dim backdrop
+  ctx.fillStyle = 'rgba(8,10,22,0.92)';
+  ctx.fillRect(0, 0, w, h);
+
+  const panelW = Math.min(500, w - 32);
+  const px = (w - panelW) / 2;
+  const fontSize = Math.max(11, Math.min(14, panelW / 36));
+  const lineH = fontSize * 1.7;
+  const sectionGap = lineH * 0.6;
+
+  const sections: Array<{ heading: string; lines: string[] }> = [
+    {
+      heading: 'OBJECTIVE',
+      lines: [
+        'Tiles slide down the conveyor toward you. Catch them on',
+        'your paddle, then drop them into the well to build matches.',
+        'Match 3 or more tiles of the same colour in a row,',
+        'column, or diagonal — that\'s a KLUX!',
+      ],
+    },
+    {
+      heading: 'CONTROLS',
+      lines: [
+        '← / → or A / D   Move paddle left and right',
+        '↓ or Space        Drop the top paddle tile into the well',
+        '↑ or W            Flip the paddle stack (reverse order)',
+        'P or Esc          Pause / resume',
+      ],
+    },
+    {
+      heading: 'DROPS',
+      lines: [
+        'You start with 3 drops. Missing a tile costs one drop.',
+        'Lose all drops and the game ends. In Classic mode,',
+        'drops partially refill between waves.',
+      ],
+    },
+    {
+      heading: 'MODES',
+      lines: [
+        'CLASSIC  — Complete wave goals (score X, make X KLUXes,',
+        '           survive X tiles…). Difficulty ramps each cycle.',
+        'ENDLESS  — No goals. Survive as long as possible for',
+        '           high score. Spawn speed increases over time.',
+        'VS       — Race a friend. Score points to charge your',
+        '           power meter, then press F to curse them!',
+      ],
+    },
+    {
+      heading: 'SPECIAL TILES',
+      lines: [
+        'WILD  ✦   Matches any colour',
+        'DOUBLE ■  Doubles the points for any KLUX it joins',
+        'NEGATIVE  Scoring this in a KLUX loses points — avoid!',
+        'LOCKED    Can\'t be moved; drop other tiles around it',
+      ],
+    },
+  ];
+
+  // Measure total height
+  let totalH = fontSize * 2; // title
+  for (const s of sections) {
+    totalH += lineH + sectionGap + s.lines.length * lineH;
+  }
+  totalH += fontSize * 1.5; // dismiss hint
+
+  const panelH = Math.min(totalH + 32, h - 32);
+  const py = (h - panelH) / 2;
+
+  // Panel background
+  ctx.fillStyle = 'rgba(14,18,36,0.98)';
+  ctx.beginPath();
+  ctx.roundRect(px, py, panelW, panelH, 10);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(155,209,255,0.3)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Scrollable content (clip to panel)
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(px + 1, py + 1, panelW - 2, panelH - 2, 9);
+  ctx.clip();
+
+  let y = py + 16;
+  const cx = px + panelW / 2;
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = '#e0e0e0';
+  ctx.font = `bold ${fontSize * 1.4}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.fillText('HOW TO PLAY', cx, y);
+  y += fontSize * 2;
+
+  for (const section of sections) {
+    ctx.fillStyle = 'rgba(155,209,255,0.85)';
+    ctx.font = `bold ${fontSize}px 'Segoe UI', system-ui, sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(section.heading, px + 16, y);
+    y += lineH;
+
+    ctx.fillStyle = 'rgba(210,215,235,0.8)';
+    ctx.font = `${fontSize * 0.92}px 'Segoe UI', system-ui, sans-serif`;
+    for (const line of section.lines) {
+      ctx.fillText(line, px + 16, y);
+      y += lineH;
+    }
+    y += sectionGap;
+  }
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(140,140,160,0.6)';
+  ctx.font = `${fontSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.fillText('Press ? or tap outside to close', cx, y + 4);
+
+  ctx.restore();
+  ctx.restore();
 }
