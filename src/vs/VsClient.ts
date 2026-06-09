@@ -91,10 +91,14 @@ export class VsClient {
     for (const ev of events) {
       this.lastEventId = Math.max(this.lastEventId, ev.id);
       if (ev.player === this.player) continue;
+      // Worker stores payload as a JSON string in D1; parse it back if needed
+      if (typeof ev.payload === 'string') {
+        try { ev.payload = JSON.parse(ev.payload); } catch { /* leave as-is */ }
+      }
       if (ev.type === 'board') {
         const p = ev.payload as { well: number[][]; drops: number; power: number };
         this.opponentWell  = Array.isArray(p.well) ? p.well : [];
-        this.opponentDrops = p.drops;
+        this.opponentDrops = typeof p.drops === 'number' ? p.drops : -1;
         this.opponentPower = p.power ?? 0;
         this.boardEventCount++;
       } else {
