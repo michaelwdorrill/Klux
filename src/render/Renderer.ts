@@ -634,7 +634,13 @@ export class Renderer {
         const barW = Math.min(220, w * 0.55);
         const barH = 8;
         const barX = (w - barW) / 2;
-        const barY = hudY + hudH * 0.4 - barH / 2;
+        const headerY = hudY + 4;
+        ctx.fillStyle = TEXT_DIM;
+        ctx.font = `${fontSize - 2}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText('POWER', w / 2, headerY);
+        const barY = headerY + (fontSize - 2) + 3;
         drawPowerMeter(ctx, barX, barY, barW, barH, state.vsPowerMeter, fontSize);
       } else {
         // Classic/endless: show progress bar toward wave goal
@@ -719,16 +725,23 @@ export class Renderer {
         }
       } else {
         // VS mode: power meter in landscape panel
+        ctx.fillStyle = TEXT_DIM;
+        ctx.font = `${fontSize - 1}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText('POWER', cx, y);
+        y += fontSize + 4;
+
         const barW = hudW - pad * 2;
         const barH = 10;
         drawPowerMeter(ctx, hudX + pad, y, barW, barH, state.vsPowerMeter, fontSize);
-        y += barH + fontSize + 18;
+        y += barH + (fontSize - 1) * 2 + 4 + 18;
       }
 
       ctx.fillStyle = TEXT_DIM;
       ctx.font = `${fontSize - 1}px 'Segoe UI', system-ui, sans-serif`;
       ctx.fillText('DROPS', cx, y);
-      y += fontSize + 6;
+      y += fontSize + 10;
 
       drawDropIcons(ctx, state.dropsRemaining, state.config.maxDrops, cx, y, fontSize * 1.3, 'center');
       y += fontSize * 1.3 + 16;
@@ -983,17 +996,22 @@ function drawPowerMeter(
     ctx.stroke();
   }
 
-  // Level label
+  // Labels below bar
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
+  const lineH = fontSize - 1;
   if (level > 0) {
     ctx.fillStyle = barColor;
-    ctx.font = `bold ${fontSize - 2}px 'Segoe UI', system-ui, sans-serif`;
-    ctx.fillText(`⚡ LV${level} — press F to fire`, x + w / 2, y + h + 2);
+    ctx.font = `bold ${lineH}px 'Segoe UI', system-ui, sans-serif`;
+    ctx.fillText(`Level ${level}`, x + w / 2, y + h + 3);
+    ctx.fillStyle = 'rgba(200,200,220,0.7)';
+    ctx.font = `${lineH - 2}px 'Segoe UI', system-ui, sans-serif`;
+    ctx.fillText('Press F!', x + w / 2, y + h + 3 + lineH + 1);
   } else {
     ctx.fillStyle = 'rgba(140,140,160,0.5)';
-    ctx.font = `${fontSize - 3}px 'Segoe UI', system-ui, sans-serif`;
-    ctx.fillText('POWER — charges from KLUXes', x + w / 2, y + h + 2);
+    ctx.font = `${lineH - 2}px 'Segoe UI', system-ui, sans-serif`;
+    ctx.fillText('Score points', x + w / 2, y + h + 3);
+    ctx.fillText('to charge!', x + w / 2, y + h + 3 + lineH);
   }
 }
 
