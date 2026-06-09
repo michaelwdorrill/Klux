@@ -44,17 +44,11 @@ export class Renderer {
     // Re-resize whenever the canvas's CSS dimensions change (e.g. when the
     // on-screen controls bar appears/disappears around mode picks and pauses).
     // Without this the pixel buffer keeps its old size and renders compressed.
+    // ResizeObserver kept as a lightweight backup; draw() syncs size inline
+    // before each frame so the ResizeObserver race (fires after RAF, before paint)
+    // is no longer a problem — canvas size is always correct when draw() runs.
     if (typeof ResizeObserver !== 'undefined') {
-      // Defer resize to the next RAF so it runs at the START of the next frame,
-      // not after draw() in the same frame (ResizeObserver fires after RAF callbacks
-      // but before paint, which would clear the canvas after we've already drawn it).
-      let resizePending = false;
-      const ro = new ResizeObserver(() => {
-        if (!resizePending) {
-          resizePending = true;
-          requestAnimationFrame(() => { resizePending = false; this.resize(); });
-        }
-      });
+      const ro = new ResizeObserver(() => this.resize());
       ro.observe(canvas);
     }
   }
@@ -63,6 +57,7 @@ export class Renderer {
     const dpr = window.devicePixelRatio || 1;
     const cssW = this.canvas.clientWidth;
     const cssH = this.canvas.clientHeight;
+    if (cssW === 0 || cssH === 0) return;
     this.canvas.width = Math.round(cssW * dpr);
     this.canvas.height = Math.round(cssH * dpr);
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -74,6 +69,18 @@ export class Renderer {
 
   draw(state: GameState, alpha: number, hoveredLane: number | null = null): void {
     const dpr = window.devicePixelRatio || 1;
+    // Inline size sync: if CSS size changed (e.g. OSC bar toggled), update the
+    // pixel buffer now — before drawing — so ResizeObserver can't clear it after.
+    const cssW = this.canvas.clientWidth;
+    const cssH = this.canvas.clientHeight;
+    if (cssW === 0 || cssH === 0) return;  // minimized/hidden — nothing to draw
+    const targetW = Math.round(cssW * dpr);
+    const targetH = Math.round(cssH * dpr);
+    if (this.canvas.width !== targetW || this.canvas.height !== targetH) {
+      this.canvas.width = targetW;
+      this.canvas.height = targetH;
+      this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
     const w = this.canvas.width / dpr;
     const h = this.canvas.height / dpr;
     const { config } = state;
