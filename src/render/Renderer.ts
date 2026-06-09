@@ -274,10 +274,11 @@ export class Renderer {
 
       // Global leaderboards: two columns (Classic / Endless), each with Normal/Hard/Elite sections
       if (this.titleLeaderboard) {
-        const lbY = cy + subSize * 5.4;
-        const colW = Math.min(w * 0.44, 190);
-        this.drawDiffLeaderboardColumn(ctx, cx - colW * 0.55, lbY, colW, subSize, 'CLASSIC', this.titleLeaderboard);
-        this.drawDiffLeaderboardColumn(ctx, cx + colW * 0.55, lbY, colW, subSize, 'ENDLESS', this.titleLeaderboard);
+        const lbY = cy + subSize * 4.8;
+        const colW = Math.min(w * 0.46, 195);
+        const colCx = colW * 0.52;
+        this.drawDiffLeaderboardColumn(ctx, cx - colCx, lbY, colW, subSize, 'CLASSIC', this.titleLeaderboard);
+        this.drawDiffLeaderboardColumn(ctx, cx + colCx, lbY, colW, subSize, 'ENDLESS', this.titleLeaderboard);
       }
     }
 
@@ -405,10 +406,10 @@ export class Renderer {
       { key: `${modeKey}_elite`,    label: 'Elite',  color: 'rgba(239,71,111,0.85)' },
     ];
 
-    const rowH    = subSize * 1.3;
-    const topRows = 3;
-    const sectionH = rowH * (topRows + 1) + 4;
-    const gap      = subSize * 0.4;
+    const rowH    = subSize * 1.08;
+    const topRows = 2;
+    const sectionH = rowH * (topRows + 1) + 3;
+    const gap      = subSize * 0.22;
     const totalH   = rowH + sectionH * 3 + gap * 2 + 6;
     const px = cx - panelW / 2;
 
@@ -477,8 +478,8 @@ export class Renderer {
     entries: LeaderboardEntry[],
     playerScore: number,
   ): void {
-    const rowH    = subSize * 1.55;
-    const panelW  = Math.min(340, w * 0.85);
+    const rowH    = subSize * 1.32;
+    const panelW  = Math.min(320, w * 0.9);
     const panelH  = rowH * (entries.length + 1) + 8;
     const px      = cx - panelW / 2;
 

@@ -124,24 +124,28 @@ export class NameEntry {
     resultsView.style.cssText = [
       'display:none',
       'position:fixed',
-      'bottom:80px',
+      'bottom:96px',   // sit just above the OSC button bar
       'left:50%',
       'transform:translateX(-50%)',
-      'flex-direction:column',
+      'flex-direction:row',
       'align-items:center',
-      'gap:12px',
-      'background:rgba(10,12,24,0.92)',
-      'border-radius:14px',
-      'padding:18px 32px',
+      'gap:10px',
+      'background:rgba(10,12,24,0.90)',
+      'border-radius:10px',
+      'padding:10px 16px',
       'pointer-events:all',
       'z-index:201',
+      'white-space:nowrap',
     ].join(';');
 
     const resultsTitle = document.createElement('div');
-    resultsTitle.textContent = 'SCORE SUBMITTED';
-    resultsTitle.style.cssText = 'font-size:1rem;font-weight:bold;letter-spacing:.1em;color:#06d6a0';
-    resultsView.appendChild(resultsTitle);
+    resultsTitle.textContent = '✓ Submitted';
+    resultsTitle.style.cssText = 'font-size:0.82rem;font-weight:bold;color:#06d6a0;margin-right:4px';
 
+    const divider = document.createElement('div');
+    divider.style.cssText = 'width:1px;height:22px;background:rgba(255,255,255,0.15);margin:0 4px';
+
+    resultsView.append(resultsTitle, divider);
     overlay.append(inputView, resultsView);
     return { overlay, submitBtn, inputView, resultsView };
   }
@@ -177,16 +181,16 @@ export class NameEntry {
     old.forEach(b => b.remove());
 
     const btnStyle = (bg: string) => [
-      `padding:11px 28px`,
-      `font-size:0.95rem`,
+      `padding:9px 18px`,
+      `font-size:0.85rem`,
       `font-weight:bold`,
-      `letter-spacing:.08em`,
+      `letter-spacing:.06em`,
       `background:${bg}`,
       `color:#fff`,
       `border:none`,
       `border-radius:8px`,
       `cursor:pointer`,
-      `min-width:160px`,
+      `white-space:nowrap`,
     ].join(';');
 
     const replayBtn = document.createElement('button');
