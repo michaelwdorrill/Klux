@@ -45,7 +45,16 @@ export class Renderer {
     // on-screen controls bar appears/disappears around mode picks and pauses).
     // Without this the pixel buffer keeps its old size and renders compressed.
     if (typeof ResizeObserver !== 'undefined') {
-      const ro = new ResizeObserver(() => this.resize());
+      // Defer resize to the next RAF so it runs at the START of the next frame,
+      // not after draw() in the same frame (ResizeObserver fires after RAF callbacks
+      // but before paint, which would clear the canvas after we've already drawn it).
+      let resizePending = false;
+      const ro = new ResizeObserver(() => {
+        if (!resizePending) {
+          resizePending = true;
+          requestAnimationFrame(() => { resizePending = false; this.resize(); });
+        }
+      });
       ro.observe(canvas);
     }
   }
@@ -96,7 +105,7 @@ export class Renderer {
     this.drawHud(state, layout, w, h);
 
     // VS opponent panel — always on top of HUD, below pause/game-over overlays
-    if (state.mode === 'versus' && state.phase === 'playing') {
+    if (state.mode === 'versus' && (state.phase === 'playing' || state.phase === 'paused')) {
       drawOpponentPanel(ctx, layout, w, this.opponentWell, this.opponentDrops, this.opponentPower, state.config.maxDrops, this.opponentEventCount);
     }
 
