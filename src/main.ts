@@ -15,6 +15,7 @@ import { loadHighScores, recordScore, getMuted, setMuted } from './persistence/s
 import { NameEntry } from './ui/NameEntry';
 import { postScore, getTopScores, type LeaderboardEntry } from './leaderboard';
 import { VsLobby } from './ui/VsLobby';
+import { AutoPlayer } from './debug/AutoPlayer';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const nameEntry = new NameEntry();
@@ -112,9 +113,13 @@ onScreenControls.setVsHandler(() => {
   });
 });
 
-// Backtick toggles debug overlay; F fires VS power
+// Backtick toggles debug overlay; F fires VS power; Ctrl+D toggles auto-play bot
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Backquote') renderer.debugMode = !renderer.debugMode;
+  if (e.code === 'KeyD' && e.ctrlKey) {
+    e.preventDefault();
+    autoPlayer.toggle();
+  }
   if (e.code === 'KeyF' && state.mode === 'versus' && state.phase === 'playing') {
     input.inject({ type: 'FIRE_POWER' });
   }
@@ -128,6 +133,8 @@ window.addEventListener('beforeunload', () => {
 
 const FIXED_MS = 1000 / 60;
 const WAVE_CLEAR_AUTO_MS = 3000;
+
+const autoPlayer = new AutoPlayer();
 
 let acc = 0;
 let last = performance.now();
@@ -156,7 +163,8 @@ document.addEventListener('visibilitychange', () => {
 });
 
 function frame(now: number): void {
-  acc += Math.min(now - last, 250);
+  const frameDt = Math.min(now - last, 250);
+  acc += frameDt;
   last = now;
 
   const extraCmds: Command[] = [];
@@ -169,6 +177,10 @@ function frame(now: number): void {
   } else {
     waveClearEnteredAt = null;
   }
+
+  // Auto-player — ticks once per render frame, injects at most one command
+  const autoCmd = autoPlayer.tick(frameDt, state);
+  if (autoCmd) input.inject(autoCmd);
 
   while (acc >= FIXED_MS) {
     const commands = [...input.drain(), ...extraCmds.splice(0)];
@@ -279,8 +291,9 @@ function frame(now: number): void {
 
   onScreenControls.update(state.phase, state.mode, state.vsPowerMeter);
   if (state.mode === 'versus') {
-    renderer.setOpponentState(vsClient.opponentWell, vsClient.opponentDrops, vsClient.opponentPower);
+    renderer.setOpponentState(vsClient.opponentWell, vsClient.opponentDrops, vsClient.opponentPower, vsClient.boardEventCount);
   }
+  renderer.setAutoPlay(autoPlayer.enabled);
   renderer.draw(state, acc / FIXED_MS, pointerAdapter.hoveredLane);
   requestAnimationFrame(frame);
 }
