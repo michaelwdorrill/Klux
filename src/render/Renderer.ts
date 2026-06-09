@@ -29,7 +29,7 @@ export class Renderer {
   private newBest = false;
   private leaderboard: LeaderboardEntry[] | null = null;
   private leaderboardPlayerScore = 0;
-  private titleLeaderboard: { classic: LeaderboardEntry[]; endless: LeaderboardEntry[] } | null = null;
+  private titleLeaderboard: Record<string, LeaderboardEntry[]> | null = null;
   private opponentWell: number[][] = [];
   private opponentDrops = -1;
   private opponentPower = 0;
@@ -187,7 +187,7 @@ export class Renderer {
     this.leaderboardPlayerScore = playerScore;
   }
 
-  setTitleLeaderboard(data: { classic: LeaderboardEntry[]; endless: LeaderboardEntry[] } | null): void {
+  setTitleLeaderboard(data: Record<string, LeaderboardEntry[]> | null): void {
     this.titleLeaderboard = data;
   }
 
@@ -272,12 +272,12 @@ export class Renderer {
       ctx.font = `${subSize * 0.72}px 'Segoe UI', system-ui, sans-serif`;
       ctx.fillText('? — How to play', cx, cy + subSize * 5.0);
 
-      // Global leaderboards: two compact columns below the controls hint
+      // Global leaderboards: two columns (Classic / Endless), each with Normal/Hard/Elite sections
       if (this.titleLeaderboard) {
         const lbY = cy + subSize * 5.4;
-        const halfW = Math.min(160, w * 0.38);
-        this.drawMiniLeaderboard(ctx, cx - halfW * 0.55, lbY, halfW, subSize, 'CLASSIC', this.titleLeaderboard.classic);
-        this.drawMiniLeaderboard(ctx, cx + halfW * 0.55, lbY, halfW, subSize, 'ENDLESS', this.titleLeaderboard.endless);
+        const colW = Math.min(w * 0.44, 190);
+        this.drawDiffLeaderboardColumn(ctx, cx - colW * 0.55, lbY, colW, subSize, 'CLASSIC', this.titleLeaderboard);
+        this.drawDiffLeaderboardColumn(ctx, cx + colW * 0.55, lbY, colW, subSize, 'ENDLESS', this.titleLeaderboard);
       }
     }
 
@@ -359,7 +359,9 @@ export class Renderer {
           ctx.fillText('Tap CLASSIC or ENDLESS to play again', cx, cy + subSize * 1.4);
         } else {
           const tl = this.titleLeaderboard;
-          const modeBoard = tl ? tl[state.mode] : null;
+          const diff = state.config.difficulty ?? 'normal';
+          const tlKey = diff === 'normal' ? state.mode : `${state.mode}_${diff}`;
+          const modeBoard = tl ? (tl[tlKey] ?? null) : null;
           if (modeBoard && modeBoard.length > 0) {
             this.drawLeaderboardPanel(ctx, cx, cy + subSize * 1.0, subSize, w, modeBoard, -1);
           } else {
@@ -385,50 +387,84 @@ export class Renderer {
     }
   }
 
-  private drawMiniLeaderboard(
+
+  /** Two-column title screen: one mode (CLASSIC/ENDLESS) with Normal/Hard/Elite sub-sections. */
+  private drawDiffLeaderboardColumn(
     ctx: CanvasRenderingContext2D,
     cx: number,
     topY: number,
     panelW: number,
     subSize: number,
-    label: string,
-    entries: LeaderboardEntry[],
+    modeLabel: string,
+    lb: Record<string, LeaderboardEntry[]>,
   ): void {
-    const rowH   = subSize * 1.35;
-    const rows   = Math.min(5, entries.length);
-    const panelH = rowH * (rows + 1) + 6;
-    const px     = cx - panelW / 2;
+    const modeKey = modeLabel.toLowerCase() as 'classic' | 'endless';
+    const diffs: Array<{ key: string; label: string; color: string }> = [
+      { key: modeKey,               label: 'Normal', color: 'rgba(6,214,160,0.75)' },
+      { key: `${modeKey}_hard`,     label: 'Hard',   color: 'rgba(244,162,97,0.85)' },
+      { key: `${modeKey}_elite`,    label: 'Elite',  color: 'rgba(239,71,111,0.85)' },
+    ];
+
+    const rowH    = subSize * 1.3;
+    const topRows = 3;
+    const sectionH = rowH * (topRows + 1) + 4;
+    const gap      = subSize * 0.4;
+    const totalH   = rowH + sectionH * 3 + gap * 2 + 6;
+    const px = cx - panelW / 2;
 
     ctx.save();
     ctx.fillStyle = 'rgba(10,14,28,0.72)';
     ctx.beginPath();
-    ctx.roundRect(px, topY, panelW, panelH, 6);
+    ctx.roundRect(px, topY, panelW, totalH, 6);
     ctx.fill();
 
-    ctx.fillStyle = 'rgba(155,209,255,0.7)';
-    ctx.font = `bold ${subSize * 0.75}px 'Segoe UI', system-ui, sans-serif`;
+    // Mode header
+    const modeColor = modeKey === 'classic' ? 'rgba(155,209,255,0.8)' : 'rgba(255,209,102,0.8)';
+    ctx.fillStyle = modeColor;
+    ctx.font = `bold ${subSize * 0.78}px 'Segoe UI', system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(label, cx, topY + rowH * 0.5);
+    ctx.fillText(modeLabel, cx, topY + rowH * 0.55);
 
-    for (let i = 0; i < rows; i++) {
-      const e  = entries[i];
-      const ry = topY + rowH * (i + 1) + 4;
-      const rankColor = i === 0 ? '#ffd700' : i === 1 ? '#c0c0c0' : i === 2 ? '#cd7f32' : 'rgba(200,200,220,0.7)';
-      ctx.fillStyle = rankColor;
-      ctx.font = `${subSize * 0.75}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.textAlign = 'left';
-      ctx.fillText(`${i + 1}. ${e.name}`, px + 8, ry);
-      ctx.textAlign = 'right';
-      ctx.fillText(e.score.toLocaleString(), px + panelW - 8, ry);
-    }
+    let y = topY + rowH + 2;
+    for (let d = 0; d < diffs.length; d++) {
+      const { key, label, color } = diffs[d];
+      const entries = lb[key] ?? [];
+      const rows = Math.min(topRows, entries.length);
 
-    if (entries.length === 0) {
-      ctx.fillStyle = 'rgba(140,140,160,0.5)';
-      ctx.font = `${subSize * 0.72}px 'Segoe UI', system-ui, sans-serif`;
+      // Diff label
+      ctx.fillStyle = color;
+      ctx.font = `bold ${subSize * 0.68}px 'Segoe UI', system-ui, sans-serif`;
       ctx.textAlign = 'center';
-      ctx.fillText('no scores yet', cx, topY + rowH * 1.5);
+      ctx.fillText(label, cx, y + rowH * 0.45);
+      y += rowH;
+
+      if (entries.length === 0) {
+        ctx.fillStyle = 'rgba(140,140,160,0.4)';
+        ctx.font = `${subSize * 0.65}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('no scores yet', cx, y + rowH * 0.4);
+        y += rowH * topRows + gap;
+        continue;
+      }
+
+      for (let i = 0; i < rows; i++) {
+        const e = entries[i];
+        const ry = y + rowH * 0.45;
+        const rankColor = i === 0 ? '#ffd700' : i === 1 ? '#c0c0c0' : 'rgba(200,200,220,0.65)';
+        ctx.fillStyle = rankColor;
+        ctx.font = `${subSize * 0.68}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillText(`${i + 1}. ${e.name}`, px + 7, ry);
+        ctx.textAlign = 'right';
+        ctx.fillText(e.score.toLocaleString(), px + panelW - 7, ry);
+        y += rowH;
+      }
+      // fill empty rows so spacing is consistent
+      y += rowH * (topRows - rows);
+      if (d < 2) y += gap;
     }
+
     ctx.restore();
   }
 

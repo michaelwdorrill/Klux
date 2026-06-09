@@ -240,11 +240,11 @@ function tutAdvance(to: TutStep): void {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function fetchTitleLeaderboard(): Promise<void> {
-  const [classic, endless] = await Promise.all([
-    getTopScores('classic', 5),
-    getTopScores('endless', 5),
-  ]);
-  renderer.setTitleLeaderboard({ classic, endless });
+  const keys: string[] = ['classic', 'endless', 'classic_hard', 'endless_hard', 'classic_elite', 'endless_elite'];
+  const results = await Promise.all(keys.map(k => getTopScores(k, 5)));
+  const map: Record<string, LeaderboardEntry[]> = {};
+  keys.forEach((k, i) => { map[k] = results[i]; });
+  renderer.setTitleLeaderboard(map);
 }
 
 // Pre-fetch on load so the title screen shows it immediately
@@ -385,13 +385,15 @@ function frame(now: number): void {
         nameEntry.hide();
         const lbMode = leaderboardKey(capturedMode, capturedDiff);
         await postScore(lbMode, name, capturedScore, capturedWave);
-        const [entries, c, e] = await Promise.all([
+        const lbKeys = ['classic', 'endless', 'classic_hard', 'endless_hard', 'classic_elite', 'endless_elite'];
+        const [entries, ...lbResults] = await Promise.all([
           getTopScores(lbMode, 10),
-          getTopScores('classic', 5),
-          getTopScores('endless', 5),
-        ]) as [LeaderboardEntry[], LeaderboardEntry[], LeaderboardEntry[]];
+          ...lbKeys.map(k => getTopScores(k, 5)),
+        ]) as [LeaderboardEntry[], ...LeaderboardEntry[][]];
+        const lbMap: Record<string, LeaderboardEntry[]> = {};
+        lbKeys.forEach((k, i) => { lbMap[k] = lbResults[i]; });
         renderer.setLeaderboard(entries, capturedScore);
-        renderer.setTitleLeaderboard({ classic: c, endless: e });
+        renderer.setTitleLeaderboard(lbMap);
       });
     }
   }
