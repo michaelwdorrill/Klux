@@ -675,7 +675,7 @@ export class Renderer {
         ctx.textBaseline = 'top';
         ctx.fillText('POWER', w / 2, headerY);
         const barY = headerY + (fontSize - 2) + 3;
-        drawPowerMeter(ctx, barX, barY, barW, barH, state.vsPowerMeter, fontSize);
+        drawPowerMeter(ctx, barX, barY, barW, barH, state.vsPowerMeter, fontSize, true);
       } else {
         // Classic/endless: show progress bar toward wave goal
         if (state.mode === 'classic') {
@@ -768,7 +768,7 @@ export class Renderer {
 
         const barW = hudW - pad * 2;
         const barH = 10;
-        drawPowerMeter(ctx, hudX + pad, y, barW, barH, state.vsPowerMeter, fontSize);
+        drawPowerMeter(ctx, hudX + pad, y, barW, barH, state.vsPowerMeter, fontSize, false);
         y += barH + (fontSize - 1) * 2 + 4 + 18;
       }
 
@@ -997,6 +997,7 @@ function drawPowerMeter(
   x: number, y: number, w: number, h: number,
   power: number,
   fontSize: number,
+  isMobile = false,
 ): void {
   const MAX = 6000;
   const fill = Math.min(1, power / MAX);
@@ -1033,12 +1034,18 @@ function drawPowerMeter(
   ctx.textBaseline = 'top';
   const lineH = fontSize - 1;
   if (level > 0) {
+    // Scale label size 10%/20%/30%/40% larger per level
+    const scale = 1 + level * 0.1;
+    const labelSize = Math.round(lineH * scale);
+    const fireSize  = Math.round((lineH - 1) * scale);
     ctx.fillStyle = barColor;
-    ctx.font = `bold ${lineH}px 'Segoe UI', system-ui, sans-serif`;
+    ctx.font = `bold ${labelSize}px 'Segoe UI', system-ui, sans-serif`;
     ctx.fillText(`Level ${level}`, x + w / 2, y + h + 3);
-    ctx.fillStyle = 'rgba(200,200,220,0.7)';
-    ctx.font = `${lineH - 2}px 'Segoe UI', system-ui, sans-serif`;
-    ctx.fillText('Press F!', x + w / 2, y + h + 3 + lineH + 1);
+    ctx.font = `bold ${fireSize}px 'Segoe UI', system-ui, sans-serif`;
+    const fireText = level === 4
+      ? (isMobile ? '⚡ Tap FIRE! ⚡' : '⚡ Press F! ⚡')
+      : (isMobile ? 'Tap FIRE!' : 'Press F!');
+    ctx.fillText(fireText, x + w / 2, y + h + 3 + labelSize + 1);
   } else {
     ctx.fillStyle = 'rgba(140,140,160,0.5)';
     ctx.font = `${lineH - 2}px 'Segoe UI', system-ui, sans-serif`;

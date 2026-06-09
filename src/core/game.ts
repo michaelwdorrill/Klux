@@ -44,11 +44,11 @@ function spawnTile(state: GameState): GameState {
   const lane = nextInt(rng, 0, config.cols);
   const falling: FallingTile = { tile, lane, progress: 0 };
 
-  // Spawn tier for endless uses tiles-fed so speed ramps continuously,
-  // not just when KLUXes are made (which would stall for struggling players).
-  const tier = state.mode === 'endless'
-    ? Math.floor(state.tilesFedThisWave / 15)
-    : state.wave.index;
+  // Spawn tier: classic ramps per wave, endless/versus ramp per tiles fed.
+  // VS uses tiles-fed so the pace escalates naturally during a match.
+  const tier = state.mode === 'classic'
+    ? state.wave.index
+    : Math.floor(state.tilesFedThisWave / 15);
   const interval = spawnIntervalMs(
     tier,
     config.baseSpawnMs,
@@ -318,14 +318,16 @@ export function step(state: GameState, dtMs: number, commands: Command[]): GameS
   }
 
   // Spawn before advancing so the new tile is included in this frame's conveyor pass
-  let spawnTimer = s.spawnTimer - dtMs;
+  // Speed boost (level 3 curse) doubles both spawn rate and tile travel speed.
+  let vsSpeedBoost = s.vsSpeedBoost;
+  const speedMultiplier = vsSpeedBoost > 0 ? 2 : 1;
+  let spawnTimer = s.spawnTimer - dtMs * speedMultiplier;
   if (spawnTimer <= 0) {
     s = spawnTile({ ...s, spawnTimer: 0 });
     spawnTimer = s.spawnTimer;
   }
 
   // Advance conveyor — double speed during VS speed boost
-  let vsSpeedBoost = s.vsSpeedBoost;
   const travel = travelMs(s.tilesFedThisWave, s.config.baseTravelMs, s.config.minTravelMs, s.config.rampPerTile);
   const effectiveTravelMs = vsSpeedBoost > 0 ? travel / 2 : travel;
   if (vsSpeedBoost > 0) vsSpeedBoost = Math.max(0, vsSpeedBoost - dtMs);
