@@ -40,7 +40,6 @@ export class Renderer {
   private autoPlay = false;
   private tutorialText = '';
   private tutorialAlpha = 0;
-  private tutorialHighlightPaddle = false;
   debugMode = false;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -198,10 +197,9 @@ export class Renderer {
   setVsDisconnectWin(on: boolean): void { this.vsDisconnectWin = on; }
   setShowHowToPlay(on: boolean): void { this.showHowToPlay = on; }
   toggleHowToPlay(): void { this.showHowToPlay = !this.showHowToPlay; }
-  setTutorial(text: string, alpha: number, highlightPaddle = false): void {
+  setTutorial(text: string, alpha: number): void {
     this.tutorialText = text;
     this.tutorialAlpha = alpha;
-    this.tutorialHighlightPaddle = highlightPaddle;
   }
 
   private drawDebug(state: GameState, w: number): void {
@@ -572,13 +570,13 @@ export class Renderer {
     ctx.fillStyle = PADDLE_ACTIVE;
     ctx.fillRect(activeX + 1, paddleOrigin.y + 2, cellSize - 2, cellSize - 4);
 
-    // Tutorial pulse glow on paddle
-    if (this.tutorialHighlightPaddle && this.tutorialAlpha > 0) {
-      const pulseAlpha = this.tutorialAlpha * (0.4 + 0.4 * Math.abs(Math.sin(performance.now() / 350)));
+    // Persistent paddle lane pulse glow
+    {
+      const pulseAlpha = 0.35 + 0.3 * Math.abs(Math.sin(performance.now() / 400));
       ctx.save();
       ctx.globalAlpha = pulseAlpha;
       ctx.shadowColor = '#9bd1ff';
-      ctx.shadowBlur = 18;
+      ctx.shadowBlur = 16;
       ctx.strokeStyle = '#9bd1ff';
       ctx.lineWidth = 2;
       ctx.strokeRect(activeX + 1, paddleOrigin.y + 2, cellSize - 2, cellSize - 4);
@@ -1158,9 +1156,10 @@ function drawTutorialMessage(
   const pillW = maxW + padX * 2;
   const pillH = lines.length * lineH + padY * 2;
 
-  // Position: just above the conveyor area
+  // Position: centered in the conveyor area (where tiles fall)
   const cx = layout.conveyorOrigin.x + (layout.cellSize * layout.cols) / 2;
-  const cy = layout.conveyorOrigin.y - pillH / 2 - fontSize;
+  const conveyorMidY = layout.conveyorOrigin.y + (layout.cellSize * layout.conveyorRows) / 2;
+  const cy = Math.max(pillH / 2 + 8, conveyorMidY);
 
   ctx.fillStyle = 'rgba(10,14,30,0.88)';
   ctx.beginPath();
