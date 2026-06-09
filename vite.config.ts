@@ -47,6 +47,10 @@ export default defineConfig({
         // it gets included instead of skipped.
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,png,svg,wav,mp3,webmanifest}'],
+        // Take over immediately on activation so deploys are live on next
+        // page load without needing to close all tabs or use incognito.
+        skipWaiting: true,
+        clientsClaim: true,
       },
     }),
   ],

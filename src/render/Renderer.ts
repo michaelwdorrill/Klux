@@ -30,6 +30,8 @@ export class Renderer {
   private leaderboard: LeaderboardEntry[] | null = null;
   private leaderboardPlayerScore = 0;
   private titleLeaderboard: { classic: LeaderboardEntry[]; endless: LeaderboardEntry[] } | null = null;
+  private opponentWell: number[][] = [];
+  private opponentDrops = -1;
   debugMode = false;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -130,6 +132,11 @@ export class Renderer {
     this.titleLeaderboard = data;
   }
 
+  setOpponentState(well: number[][], drops: number): void {
+    this.opponentWell  = well;
+    this.opponentDrops = drops;
+  }
+
   private drawDebug(state: GameState, w: number): void {
     const { ctx } = this;
     const lines = [
@@ -185,7 +192,7 @@ export class Renderer {
       ctx.fillStyle = 'rgba(140,140,160,0.55)';
       ctx.font = `${subSize * 0.78}px 'Segoe UI', system-ui, sans-serif`;
       ctx.fillText('Tap a button below · keys 1 / 2 also work', cx, cy + subSize * 3.1);
-      ctx.fillText('Arrows / WASD · Space = drop · P = pause · M = mute', cx, cy + subSize * 4.0);
+      ctx.fillText('Arrows / WASD · Space = drop · P = pause', cx, cy + subSize * 4.0);
 
       // Global leaderboards: two compact columns below the controls hint
       if (this.titleLeaderboard) {
@@ -235,9 +242,15 @@ export class Renderer {
     }
 
     if (state.phase === 'gameOver') {
-      ctx.fillStyle = '#e63946';
-      ctx.font = `bold ${titleSize}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText('GAME OVER', cx, cy - subSize * 3.0);
+      if (state.mode === 'versus') {
+        ctx.fillStyle = state.vsWon ? '#06d6a0' : '#e63946';
+        ctx.font = `bold ${titleSize * 1.2}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.fillText(state.vsWon ? 'YOU WIN!' : 'YOU LOSE!', cx, cy - subSize * 3.0);
+      } else {
+        ctx.fillStyle = '#e63946';
+        ctx.font = `bold ${titleSize}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.fillText('GAME OVER', cx, cy - subSize * 3.0);
+      }
 
       ctx.fillStyle = '#e0e0e0';
       ctx.font = `${subSize}px 'Segoe UI', system-ui, sans-serif`;
@@ -247,41 +260,44 @@ export class Renderer {
         ctx.fillStyle = '#ffd166';
         ctx.font = `bold ${subSize * 1.05}px 'Segoe UI', system-ui, sans-serif`;
         ctx.fillText('★ NEW BEST! ★', cx, cy - subSize * 0.1);
-      } else {
+      } else if (state.mode !== 'versus') {
         const best = this.highScores[state.mode];
         ctx.fillStyle = 'rgba(200,200,220,0.65)';
         ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
         ctx.fillText(`Best ${state.mode}: ${best.toLocaleString()}`, cx, cy - subSize * 0.1);
       }
 
-      if (this.leaderboard !== null && this.leaderboard.length > 0) {
-        this.drawLeaderboardPanel(ctx, cx, cy + subSize * 1.0, subSize, w, this.leaderboard, this.leaderboardPlayerScore);
-      } else if (this.leaderboard !== null) {
-        // submitted but board is empty (unlikely) — just show play-again
-        ctx.fillStyle = 'rgba(200,200,220,0.75)';
-        ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
-        ctx.fillText('Tap CLASSIC or ENDLESS to play again', cx, cy + subSize * 1.4);
-      } else {
-        // waiting for name entry — show existing global leaderboard so the
-        // player knows what they're shooting for before they submit
-        const tl = this.titleLeaderboard;
-        const modeBoard = tl ? tl[state.mode] : null;
-        if (modeBoard && modeBoard.length > 0) {
-          this.drawLeaderboardPanel(ctx, cx, cy + subSize * 1.0, subSize, w, modeBoard, -1);
-        } else {
-          ctx.fillStyle = 'rgba(200,200,220,0.55)';
+      if (state.mode !== 'versus') {
+        if (this.leaderboard !== null && this.leaderboard.length > 0) {
+          this.drawLeaderboardPanel(ctx, cx, cy + subSize * 1.0, subSize, w, this.leaderboard, this.leaderboardPlayerScore);
+        } else if (this.leaderboard !== null) {
+          ctx.fillStyle = 'rgba(200,200,220,0.75)';
           ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
-          ctx.fillText('Enter your initials above to submit your score', cx, cy + subSize * 1.4);
+          ctx.fillText('Tap CLASSIC or ENDLESS to play again', cx, cy + subSize * 1.4);
+        } else {
+          const tl = this.titleLeaderboard;
+          const modeBoard = tl ? tl[state.mode] : null;
+          if (modeBoard && modeBoard.length > 0) {
+            this.drawLeaderboardPanel(ctx, cx, cy + subSize * 1.0, subSize, w, modeBoard, -1);
+          } else {
+            ctx.fillStyle = 'rgba(200,200,220,0.55)';
+            ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
+            ctx.fillText('Enter your initials above to submit your score', cx, cy + subSize * 1.4);
+          }
         }
-      }
 
-      if (this.leaderboard !== null) {
+        if (this.leaderboard !== null) {
+          ctx.fillStyle = 'rgba(200,200,220,0.75)';
+          ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
+          ctx.fillText('Tap CLASSIC or ENDLESS to play again', cx, h - subSize * 2.2);
+          ctx.fillStyle = 'rgba(140,140,160,0.5)';
+          ctx.font = `${subSize * 0.75}px 'Segoe UI', system-ui, sans-serif`;
+          ctx.fillText('or press 1 / 2 · Enter restarts same mode', cx, h - subSize * 1.1);
+        }
+      } else {
         ctx.fillStyle = 'rgba(200,200,220,0.75)';
         ctx.font = `${subSize * 0.85}px 'Segoe UI', system-ui, sans-serif`;
-        ctx.fillText('Tap CLASSIC or ENDLESS to play again', cx, h - subSize * 2.2);
-        ctx.fillStyle = 'rgba(140,140,160,0.5)';
-        ctx.font = `${subSize * 0.75}px 'Segoe UI', system-ui, sans-serif`;
-        ctx.fillText('or press 1 / 2 · Enter restarts same mode', cx, h - subSize * 1.1);
+        ctx.fillText('Tap a mode below to play again', cx, h - subSize * 1.5);
       }
     }
   }
@@ -582,6 +598,26 @@ export class Renderer {
       ctx.fillText(hudGoalText(state), pad, hudY + hudH * 0.72);
 
       drawDropIcons(ctx, state.dropsRemaining, state.config.maxDrops, w - pad, hudY + hudH * 0.5, fontSize * 1.2, 'right');
+
+      if (state.mode === 'versus') {
+        // Power meter — left half of bottom bar
+        const barW = Math.min(160, w * 0.33);
+        const barH = 8;
+        const barX = pad;
+        const barY = hudY + hudH - barH - 6;
+        drawPowerMeter(ctx, barX, barY, barW, barH, state.vsPowerMeter, fontSize);
+
+        // Opponent mini-board — right side of bottom bar
+        if (this.opponentWell.length > 0) {
+          const rows = this.opponentWell.length;
+          const cols = this.opponentWell[0]?.length ?? 5;
+          const cellH = (hudH - 14) / rows;
+          const cellW = cellH * 0.8;
+          const bx = w - pad - cols * cellW;
+          const by = hudY + 6;
+          drawMiniBoard(ctx, bx, by, cellW, cellH, this.opponentWell, this.opponentDrops, state.config.maxDrops, fontSize);
+        }
+      }
     } else {
       // Right panel in landscape
       ctx.fillStyle = '#111827';
@@ -602,7 +638,7 @@ export class Renderer {
       ctx.fillText(`${state.score}`, cx, y);
       y += fontSize + 6;
 
-      const best = this.highScores[state.mode];
+      const best = state.mode !== 'versus' ? this.highScores[state.mode] : 0;
       if (best > 0) {
         ctx.fillStyle = state.score > best ? '#ffd166' : TEXT_DIM;
         ctx.font = `${fontSize - 2}px 'Segoe UI', system-ui, sans-serif`;
@@ -657,6 +693,31 @@ export class Renderer {
       drawDropIcons(ctx, state.dropsRemaining, state.config.maxDrops, cx, y, fontSize * 1.3, 'center');
       y += fontSize * 1.3 + 16;
 
+      if (state.mode === 'versus') {
+        const barW = hudW - pad * 2;
+        const barH = 10;
+        drawPowerMeter(ctx, hudX + pad, y, barW, barH, state.vsPowerMeter, fontSize);
+        y += barH + fontSize + 16;
+
+        // Opponent mini-board
+        if (this.opponentWell.length > 0) {
+          ctx.fillStyle = TEXT_DIM;
+          ctx.font = `${fontSize - 1}px 'Segoe UI', system-ui, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText('OPPONENT', cx, y);
+          y += fontSize + 4;
+
+          const rows = this.opponentWell.length;
+          const cols = this.opponentWell[0]?.length ?? 5;
+          const cellW = Math.min(14, (hudW - pad * 2) / cols);
+          const cellH = cellW * 1.1;
+          const bx = cx - (cols * cellW) / 2;
+          drawMiniBoard(ctx, bx, y, cellW, cellH, this.opponentWell, this.opponentDrops, state.config.maxDrops, fontSize);
+          y += rows * cellH + 12;
+        }
+      }
+
       // Stack panel in landscape HUD
       if (state.paddle.length > 0) {
         ctx.fillStyle = TEXT_DIM;
@@ -674,6 +735,108 @@ export class Renderer {
         }
       }
     }
+  }
+}
+
+function drawMiniBoard(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number,
+  cellW: number, cellH: number,
+  well: number[][],
+  drops: number,
+  maxDrops: number,
+  fontSize: number,
+): void {
+  const rows = well.length;
+  const cols = well[0]?.length ?? 0;
+  const totalW = cols * cellW;
+  const totalH = rows * cellH;
+
+  // Background
+  ctx.fillStyle = 'rgba(5,8,20,0.7)';
+  ctx.fillRect(x - 1, y - 1, totalW + 2, totalH + 2);
+
+  for (let r = 0; r < rows; r++) {
+    const drawRow = rows - 1 - r; // row 0 = bottom of well → drawn at bottom
+    for (let c = 0; c < cols; c++) {
+      const color = well[r]?.[c] ?? -1;
+      const cx2 = x + c * cellW;
+      const cy2 = y + drawRow * cellH;
+      if (color >= 0 && color < FILL_COLORS.length) {
+        ctx.fillStyle = FILL_COLORS[color]!;
+        ctx.fillRect(cx2 + 0.5, cy2 + 0.5, cellW - 1, cellH - 1);
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.04)';
+        ctx.fillRect(cx2 + 0.5, cy2 + 0.5, cellW - 1, cellH - 1);
+      }
+    }
+  }
+
+  // Drops remaining indicator below the board
+  if (drops >= 0) {
+    const dropSize = Math.max(4, cellW * 0.55);
+    const gap = 2;
+    const iconY = y + totalH + 4;
+    const totalIconW = maxDrops * (dropSize + gap) - gap;
+    let ix = x + (totalW - totalIconW) / 2;
+    for (let i = 0; i < maxDrops; i++) {
+      ctx.fillStyle = i < drops ? '#e63946' : 'rgba(255,255,255,0.1)';
+      ctx.beginPath();
+      ctx.arc(ix + dropSize / 2, iconY + dropSize / 2, dropSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ix += dropSize + gap;
+    }
+    void fontSize;
+  }
+}
+
+function drawPowerMeter(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number,
+  power: number,
+  fontSize: number,
+): void {
+  const MAX = 6000;
+  const fill = Math.min(1, power / MAX);
+  const level = power >= 6000 ? 4 : power >= 4500 ? 3 : power >= 3000 ? 2 : power >= 1500 ? 1 : 0;
+  const barColor = level >= 4 ? '#ef476f' : level >= 3 ? '#ffd166' : level >= 2 ? '#f4a261' : level >= 1 ? '#06d6a0' : '#4a90d9';
+
+  // Track
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, h / 2);
+  ctx.fill();
+
+  // Fill
+  if (fill > 0) {
+    ctx.fillStyle = barColor;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w * fill, h, h / 2);
+    ctx.fill();
+  }
+
+  // Tick marks at 1500/3000/4500
+  ctx.strokeStyle = 'rgba(10,12,24,0.6)';
+  ctx.lineWidth = 1.5;
+  for (const thresh of [1500, 3000, 4500]) {
+    const tx = x + (thresh / MAX) * w;
+    ctx.beginPath();
+    ctx.moveTo(tx, y);
+    ctx.lineTo(tx, y + h);
+    ctx.stroke();
+  }
+
+  // Level label
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  if (level > 0) {
+    ctx.fillStyle = barColor;
+    ctx.font = `bold ${fontSize - 2}px 'Segoe UI', system-ui, sans-serif`;
+    ctx.fillText(`⚡ LV${level} — press F to fire`, x + w / 2, y + h + 2);
+  } else {
+    ctx.fillStyle = 'rgba(140,140,160,0.5)';
+    ctx.font = `${fontSize - 3}px 'Segoe UI', system-ui, sans-serif`;
+    ctx.fillText('POWER — charges from KLUXes', x + w / 2, y + h + 2);
   }
 }
 

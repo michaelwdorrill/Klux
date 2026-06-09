@@ -21,6 +21,10 @@ export function drawTile(
     drawWildTile(ctx, x, y, size, alpha, scale);
     return;
   }
+  if (tileType === 'locked') {
+    drawLockedTile(ctx, x, y, size, colorIndex, alpha, scale);
+    return;
+  }
 
   const pad = size * 0.07;
   const w = (size - pad * 2) * scale;
@@ -40,13 +44,42 @@ export function drawTile(
   ctx.roundRect(tx, ty, w, w, r);
   ctx.fill();
 
-  // Border: gold for double tiles, dark otherwise
-  ctx.strokeStyle = tileType === 'double' ? '#ffd700' : DARK_COLORS[ci];
+  // Border: gold for double, dark-red pulse for negative, dark otherwise
+  ctx.strokeStyle =
+    tileType === 'double'   ? '#ffd700' :
+    tileType === 'negative' ? '#8b0000' :
+    DARK_COLORS[ci];
   ctx.lineWidth = tileType === 'double' ? Math.max(2, w * 0.07) : Math.max(1, w * 0.05);
   ctx.stroke();
 
+  // Negative: dark overlay to dim the color
+  if (tileType === 'negative') {
+    ctx.fillStyle = 'rgba(0,0,0,0.38)';
+    ctx.beginPath();
+    ctx.roundRect(tx, ty, w, w, r);
+    ctx.fill();
+  }
+
   // Secondary shape (colorblind cue)
-  drawShape(ctx, cx, cy, w * 0.28, SHAPES[ci], DARK_COLORS[ci]);
+  drawShape(ctx, cx, cy, w * 0.28, SHAPES[ci],
+    tileType === 'negative' ? 'rgba(80,0,0,0.9)' : DARK_COLORS[ci]);
+
+  if (tileType === 'negative') {
+    // Minus badge: red circle, white minus
+    const br = Math.max(5, w * 0.2);
+    const bx = tx + w - br * 0.6;
+    const by = ty + br * 0.6;
+    ctx.fillStyle = '#8b0000';
+    ctx.beginPath();
+    ctx.arc(bx, by, br, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = Math.max(1.5, br * 0.35);
+    ctx.beginPath();
+    ctx.moveTo(bx - br * 0.55, by);
+    ctx.lineTo(bx + br * 0.55, by);
+    ctx.stroke();
+  }
 
   if (tileType === 'double') {
     // ×2 badge: small gold circle in the top-right corner
@@ -63,6 +96,71 @@ export function drawTile(
     ctx.textBaseline = 'middle';
     ctx.fillText('×2', bx, by + br * 0.05);
   }
+
+  ctx.restore();
+}
+
+function drawLockedTile(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  colorIndex: number,
+  alpha: number,
+  scale: number,
+): void {
+  const pad = size * 0.07;
+  const w   = (size - pad * 2) * scale;
+  const cx  = x + size / 2;
+  const cy  = y + size / 2;
+  const tx  = cx - w / 2;
+  const ty  = cy - w / 2;
+  const r   = w * 0.18;
+  const ci  = colorIndex % FILL_COLORS.length;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  // Body — desaturated version of the tile color
+  ctx.fillStyle = FILL_COLORS[ci];
+  ctx.beginPath();
+  ctx.roundRect(tx, ty, w, w, r);
+  ctx.fill();
+
+  // Heavy dark overlay to show it's locked
+  ctx.fillStyle = 'rgba(0,0,0,0.52)';
+  ctx.beginPath();
+  ctx.roundRect(tx, ty, w, w, r);
+  ctx.fill();
+
+  // Dark border with slight color tint
+  ctx.strokeStyle = DARK_COLORS[ci];
+  ctx.lineWidth = Math.max(1, w * 0.05);
+  ctx.stroke();
+
+  // Padlock symbol
+  const lw  = w * 0.36;
+  const lh  = w * 0.28;
+  const lx  = cx - lw / 2;
+  const ly  = cy - lh * 0.1;
+  const bh  = lh * 0.65;
+  const arc = lw * 0.38;
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth   = Math.max(1.5, w * 0.06);
+  ctx.lineJoin    = 'round';
+
+  // Shackle (arc on top)
+  ctx.beginPath();
+  ctx.arc(cx, ly, arc, Math.PI, 0);
+  ctx.stroke();
+
+  // Body rectangle
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.beginPath();
+  ctx.roundRect(lx, ly, lw, bh, w * 0.06);
+  ctx.fill();
+  ctx.stroke();
 
   ctx.restore();
 }
