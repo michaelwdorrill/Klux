@@ -85,6 +85,8 @@ function wireVsEvents(): void {
         level >= 2 ? { type: 'VS_EXTRA_SPAWN' } :
                      { type: 'VS_LOCKED' };
       input.inject(cmd);
+      audio.sfxCurse();
+      renderer.triggerCurse();
     } else if (ev.type === 'gameover') {
       input.inject({ type: 'VS_WIN' });
       vsClient.stopPolling();
@@ -207,7 +209,7 @@ function frame(now: number): void {
     if (vsBoardSyncTimer <= 0) {
       vsBoardSyncTimer = 750;
       const encoded = state.well.map(row => row.map(cell => cell ? cell.color : -1));
-      vsClient.sendBoard(encoded, state.dropsRemaining);
+      vsClient.sendBoard(encoded, state.dropsRemaining, state.vsPowerMeter);
     }
   } else {
     vsBoardSyncTimer = 0;
@@ -273,7 +275,7 @@ function frame(now: number): void {
 
   onScreenControls.update(state.phase, state.mode, state.vsPowerMeter);
   if (state.mode === 'versus') {
-    renderer.setOpponentState(vsClient.opponentWell, vsClient.opponentDrops);
+    renderer.setOpponentState(vsClient.opponentWell, vsClient.opponentDrops, vsClient.opponentPower);
   }
   renderer.draw(state, acc / FIXED_MS, pointerAdapter.hoveredLane);
   requestAnimationFrame(frame);

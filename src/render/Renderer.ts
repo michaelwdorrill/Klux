@@ -32,6 +32,8 @@ export class Renderer {
   private titleLeaderboard: { classic: LeaderboardEntry[]; endless: LeaderboardEntry[] } | null = null;
   private opponentWell: number[][] = [];
   private opponentDrops = -1;
+  private opponentPower = 0;
+  private curseTimer = 0;
   debugMode = false;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -91,9 +93,20 @@ export class Renderer {
     // HUD + popups (steady)
     this.drawHud(state, layout, w, h);
 
+    // VS opponent panel — always on top of HUD, below pause/game-over overlays
+    if (state.mode === 'versus' && this.opponentWell.length > 0) {
+      drawOpponentPanel(ctx, layout, w, this.opponentWell, this.opponentDrops, this.opponentPower, state.config.maxDrops);
+    }
+
     const wellCenterX = layout.wellOrigin.x + (layout.cellSize * layout.cols) / 2;
     const wellCenterY = layout.wellOrigin.y + (layout.cellSize * layout.rows) / 2;
     this.effects.drawOverlay(ctx, w, h, layout.cellSize * layout.cols, wellCenterX, wellCenterY);
+
+    // Curse flash
+    if (this.curseTimer > 0) {
+      this.curseTimer -= dtMs;
+      drawCurseNotification(ctx, w, this.curseTimer);
+    }
 
     if (state.phase !== 'playing') {
       this.drawOverlay(state, w, h, layout.cellSize);
@@ -132,10 +145,13 @@ export class Renderer {
     this.titleLeaderboard = data;
   }
 
-  setOpponentState(well: number[][], drops: number): void {
+  setOpponentState(well: number[][], drops: number, power = 0): void {
     this.opponentWell  = well;
     this.opponentDrops = drops;
+    this.opponentPower = power;
   }
+
+  triggerCurse(): void { this.curseTimer = 2200; }
 
   private drawDebug(state: GameState, w: number): void {
     const { ctx } = this;
@@ -600,22 +616,16 @@ export class Renderer {
       drawDropIcons(ctx, state.dropsRemaining, state.config.maxDrops, w - pad, hudY + hudH * 0.5, fontSize * 1.2, 'right');
 
       if (state.mode === 'versus') {
-        // Power meter — left half of bottom bar
-        const barW = Math.min(160, w * 0.33);
+        // Power meter — centred in the bottom bar
+        const barW = Math.min(220, w * 0.55);
         const barH = 8;
-        const barX = pad;
-        const barY = hudY + hudH - barH - 6;
+        const barX = (w - barW) / 2;
+        const barY = hudY + hudH * 0.4 - barH / 2;
         drawPowerMeter(ctx, barX, barY, barW, barH, state.vsPowerMeter, fontSize);
-
-        // Opponent mini-board — right side of bottom bar
-        if (this.opponentWell.length > 0) {
-          const rows = this.opponentWell.length;
-          const cols = this.opponentWell[0]?.length ?? 5;
-          const cellH = (hudH - 14) / rows;
-          const cellW = cellH * 0.8;
-          const bx = w - pad - cols * cellW;
-          const by = hudY + 6;
-          drawMiniBoard(ctx, bx, by, cellW, cellH, this.opponentWell, this.opponentDrops, state.config.maxDrops, fontSize);
+      } else {
+        // Classic/endless: show progress bar toward wave goal
+        if (state.mode === 'classic') {
+          drawGoalProgress(ctx, state, w, hudY, hudH, pad, fontSize);
         }
       }
     } else {
@@ -647,43 +657,59 @@ export class Renderer {
       }
       y += 8;
 
-      // Wave counter — classic only; endless is one continuous run
-      if (state.mode === 'classic') {
+      if (state.mode !== 'versus') {
+        // Wave counter — classic only
+        if (state.mode === 'classic') {
+          ctx.fillStyle = TEXT_DIM;
+          ctx.font = `${fontSize - 1}px 'Segoe UI', system-ui, sans-serif`;
+          ctx.fillText('WAVE', cx, y);
+          y += fontSize + 2;
+
+          ctx.fillStyle = TEXT_PRIMARY;
+          ctx.font = `bold ${fontSize + 2}px 'Segoe UI', system-ui, sans-serif`;
+          ctx.fillText(`${state.wave.index + 1}`, cx, y);
+          y += fontSize + 10;
+        }
+
+        // Goal with progress bar
         ctx.fillStyle = TEXT_DIM;
         ctx.font = `${fontSize - 1}px 'Segoe UI', system-ui, sans-serif`;
-        ctx.fillText('WAVE', cx, y);
-        y += fontSize + 2;
+        ctx.fillText(state.mode === 'endless' ? 'MODE' : 'GOAL', cx, y);
+        y += fontSize + 4;
 
-        ctx.fillStyle = TEXT_PRIMARY;
-        ctx.font = `bold ${fontSize + 2}px 'Segoe UI', system-ui, sans-serif`;
-        ctx.fillText(`${state.wave.index + 1}`, cx, y);
-        y += fontSize + 14;
-      }
-
-      ctx.fillStyle = TEXT_DIM;
-      ctx.font = `${fontSize - 1}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.fillText(state.mode === 'endless' ? 'MODE' : 'GOAL', cx, y);
-      y += fontSize + 4;
-
-      ctx.fillStyle = TEXT_PRIMARY;
-      ctx.font = `${fontSize}px 'Segoe UI', system-ui, sans-serif`;
-      ctx.textAlign = 'center';
-      const gt = hudGoalText(state);
-      // Wrap if long
-      const words = gt.split(' ');
-      let line = '';
-      for (const word of words) {
-        const test = line ? `${line} ${word}` : word;
-        if (ctx.measureText(test).width > hudW - pad * 2 && line) {
-          ctx.fillText(line, cx, y);
-          y += fontSize + 2;
-          line = word;
-        } else {
-          line = test;
+        ctx.fillStyle = '#9bd1ff';
+        ctx.font = `bold ${fontSize}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        const gt = hudGoalText(state);
+        const words = gt.split(' ');
+        let line = '';
+        for (const word of words) {
+          const test = line ? `${line} ${word}` : word;
+          if (ctx.measureText(test).width > hudW - pad * 2 && line) {
+            ctx.fillText(line, cx, y); y += fontSize + 2; line = word;
+          } else { line = test; }
         }
+        if (line) { ctx.fillText(line, cx, y); y += fontSize + 2; }
+
+        if (state.mode === 'classic') {
+          y += 4;
+          const progress = Math.min(1, state.waveProgress / state.wave.target);
+          const barW = hudW - pad * 2;
+          ctx.fillStyle = 'rgba(255,255,255,0.08)';
+          ctx.beginPath(); ctx.roundRect(hudX + pad, y, barW, 5, 2); ctx.fill();
+          ctx.fillStyle = '#9bd1ff';
+          ctx.beginPath(); ctx.roundRect(hudX + pad, y, barW * progress, 5, 2); ctx.fill();
+          y += 5 + 10;
+        } else {
+          y += 12;
+        }
+      } else {
+        // VS mode: power meter in landscape panel
+        const barW = hudW - pad * 2;
+        const barH = 10;
+        drawPowerMeter(ctx, hudX + pad, y, barW, barH, state.vsPowerMeter, fontSize);
+        y += barH + fontSize + 18;
       }
-      if (line) { ctx.fillText(line, cx, y); y += fontSize + 2; }
-      y += 12;
 
       ctx.fillStyle = TEXT_DIM;
       ctx.font = `${fontSize - 1}px 'Segoe UI', system-ui, sans-serif`;
@@ -692,31 +718,6 @@ export class Renderer {
 
       drawDropIcons(ctx, state.dropsRemaining, state.config.maxDrops, cx, y, fontSize * 1.3, 'center');
       y += fontSize * 1.3 + 16;
-
-      if (state.mode === 'versus') {
-        const barW = hudW - pad * 2;
-        const barH = 10;
-        drawPowerMeter(ctx, hudX + pad, y, barW, barH, state.vsPowerMeter, fontSize);
-        y += barH + fontSize + 16;
-
-        // Opponent mini-board
-        if (this.opponentWell.length > 0) {
-          ctx.fillStyle = TEXT_DIM;
-          ctx.font = `${fontSize - 1}px 'Segoe UI', system-ui, sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'top';
-          ctx.fillText('OPPONENT', cx, y);
-          y += fontSize + 4;
-
-          const rows = this.opponentWell.length;
-          const cols = this.opponentWell[0]?.length ?? 5;
-          const cellW = Math.min(14, (hudW - pad * 2) / cols);
-          const cellH = cellW * 1.1;
-          const bx = cx - (cols * cellW) / 2;
-          drawMiniBoard(ctx, bx, y, cellW, cellH, this.opponentWell, this.opponentDrops, state.config.maxDrops, fontSize);
-          y += rows * cellH + 12;
-        }
-      }
 
       // Stack panel in landscape HUD
       if (state.paddle.length > 0) {
@@ -736,6 +737,133 @@ export class Renderer {
       }
     }
   }
+}
+
+/** Floating opponent board panel — drawn over the canvas, top-right of playfield. */
+function drawOpponentPanel(
+  ctx: CanvasRenderingContext2D,
+  layout: Layout,
+  canvasW: number,
+  opponentWell: number[][],
+  opponentDrops: number,
+  opponentPower: number,
+  maxDrops: number,
+): void {
+  const rows = opponentWell.length;
+  const cols = opponentWell[0]?.length ?? 5;
+
+  const panelPad = 6;
+  const cellW = 9;
+  const cellH = 10;
+  const boardW = cols * cellW;
+  const boardH = rows * cellH;
+  const powerBarH = 5;
+  const labelH = 12;
+  const dropH = 8;
+  const panelW = boardW + panelPad * 2;
+  const panelH = labelH + 4 + boardH + 4 + powerBarH + 4 + dropH + panelPad;
+
+  // Position: top-right of conveyor area
+  const px = layout.conveyorOrigin.x + layout.cellSize * layout.cols + 6;
+  const clampedX = Math.min(px, canvasW - panelW - 4);
+  const py = layout.conveyorOrigin.y + 4;
+
+  // Panel background
+  ctx.fillStyle = 'rgba(10,12,28,0.82)';
+  ctx.beginPath();
+  ctx.roundRect(clampedX, py, panelW, panelH, 6);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(155,209,255,0.25)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  let y = py + panelPad / 2;
+
+  // Label
+  ctx.fillStyle = 'rgba(155,209,255,0.75)';
+  ctx.font = `bold 9px 'Segoe UI', system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('OPPONENT', clampedX + panelW / 2, y);
+  y += labelH + 2;
+
+  // Mini board
+  drawMiniBoard(ctx, clampedX + panelPad, y, cellW, cellH, opponentWell, opponentDrops, maxDrops, 9);
+  y += boardH + 4;
+
+  // Opponent power bar
+  const MAX_POWER = 6000;
+  const powerFill = Math.min(1, opponentPower / MAX_POWER);
+  const oppLevel = opponentPower >= 6000 ? 4 : opponentPower >= 4500 ? 3 : opponentPower >= 3000 ? 2 : opponentPower >= 1500 ? 1 : 0;
+  const barColor = oppLevel >= 4 ? '#ef476f' : oppLevel >= 3 ? '#ffd166' : oppLevel >= 2 ? '#f4a261' : oppLevel >= 1 ? '#06d6a0' : '#4a90d9';
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.beginPath(); ctx.roundRect(clampedX + panelPad, y, boardW, powerBarH, 2); ctx.fill();
+  if (powerFill > 0) {
+    ctx.fillStyle = barColor;
+    ctx.beginPath(); ctx.roundRect(clampedX + panelPad, y, boardW * powerFill, powerBarH, 2); ctx.fill();
+  }
+  if (oppLevel > 0) {
+    ctx.fillStyle = barColor;
+    ctx.font = `bold 8px 'Segoe UI', system-ui, sans-serif`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`⚡${oppLevel}`, clampedX + panelW - panelPad / 2, y + powerBarH / 2);
+  }
+}
+
+function drawCurseNotification(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  timerMs: number,
+): void {
+  const FULL_MS = 2200;
+  const FADE_MS = 600;
+  const alpha = timerMs < FADE_MS ? timerMs / FADE_MS : 1;
+  const shake = timerMs > FULL_MS - 200 ? Math.sin(timerMs * 0.08) * 3 : 0;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+
+  const fontSize = Math.min(28, w * 0.07);
+  ctx.font = `bold ${fontSize}px 'Segoe UI', system-ui, sans-serif`;
+
+  // Glow
+  ctx.shadowColor = '#ef476f';
+  ctx.shadowBlur = 18;
+  ctx.fillStyle = '#ef476f';
+  ctx.fillText('⚡ YOU\'VE BEEN CURSED! ⚡', w / 2 + shake, 18);
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+function drawGoalProgress(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  w: number,
+  hudY: number,
+  hudH: number,
+  _pad: number,
+  fontSize: number,
+): void {
+  const progress = Math.min(1, state.waveProgress / state.wave.target);
+  const barW = Math.min(200, w * 0.45);
+  const barH = 6;
+  const barX = (w - barW) / 2;
+  const barY = hudY + hudH - barH - 5;
+
+  ctx.fillStyle = 'rgba(255,255,255,0.07)';
+  ctx.beginPath(); ctx.roundRect(barX, barY, barW, barH, 3); ctx.fill();
+  ctx.fillStyle = '#9bd1ff';
+  ctx.beginPath(); ctx.roundRect(barX, barY, barW * progress, barH, 3); ctx.fill();
+
+  // Goal label centered above bar
+  ctx.fillStyle = '#9bd1ff';
+  ctx.font = `bold ${fontSize - 1}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(hudGoalText(state), w / 2, hudY + (hudH - barH - 5) / 2);
 }
 
 function drawMiniBoard(
