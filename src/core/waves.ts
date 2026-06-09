@@ -15,12 +15,12 @@ const WAVE_SEQUENCE: Array<{ goal: GoalType; baseTarget: number }> = [
 export function getWave(index: number): Wave {
   const template = WAVE_SEQUENCE[index % WAVE_SEQUENCE.length];
   const tier = Math.floor(index / WAVE_SEQUENCE.length);
-  const scale = 1 + tier * 0.5; // +50% per cycle
-  return {
-    index,
-    goal: template.goal,
-    target: Math.round(template.baseTarget * scale),
-  };
+  const bt = template.baseTarget;
+  const scale = 1 + tier * 0.5;
+  // Guarantee at least +1 per cycle so small-target waves (e.g. DIAGONALS=1)
+  // don't round to the same value two cycles in a row.
+  const target = Math.max(bt + tier, Math.round(bt * scale));
+  return { index, goal: template.goal, target };
 }
 
 export function spawnIntervalMs(
