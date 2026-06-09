@@ -80,6 +80,7 @@ onScreenControls.setMuteHandler(() => {
   return muted;
 });
 onScreenControls.setMuteState(audio.isMuted);
+onScreenControls.setHowToPlayHandler(() => renderer.toggleHowToPlay());
 
 const vsClient = vsLobby.getClient();
 
@@ -291,6 +292,11 @@ function frame(now: number): void {
     nameEntry.hide();
   }
   if (state.phase === 'title' && lastPhase !== 'title') {
+    // Clean up VS session if quitting mid-game
+    if (lastPhase === 'playing' || lastPhase === 'paused') {
+      if (vsClient.matchId) vsClient.disconnect();
+    }
+    renderer.setVsDisconnectWin(false);
     if (!titleLeaderboardFetched) {
       titleLeaderboardFetched = true;
     } else {

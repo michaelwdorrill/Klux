@@ -7,6 +7,7 @@ export type Command =
   | { type: 'FLIP' }
   | { type: 'PAUSE_TOGGLE' }
   | { type: 'CONFIRM' }
+  | { type: 'QUIT_TO_TITLE' }
   | { type: 'START_CLASSIC' }
   | { type: 'START_ENDLESS' }
   | { type: 'START_VS'; seed: number }  // seed synced from server

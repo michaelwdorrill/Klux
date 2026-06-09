@@ -9,13 +9,16 @@ export class OnScreenControls implements InputAdapter {
   private container: HTMLElement | null = null;
   private confirmBtn: HTMLButtonElement | null = null;
   private modePicker: HTMLElement | null = null;
+  private pauseMenu: HTMLElement | null = null;
   private gameControls: HTMLElement | null = null;
   private fireBtn: HTMLButtonElement | null = null;
   private muteBtn: HTMLButtonElement | null = null;
   private onMuteToggle: (() => boolean) | null = null;
   private onVsOpen: (() => void) | null = null;
+  private onHowToPlay: (() => void) | null = null;
 
   setVsHandler(fn: () => void): void { this.onVsOpen = fn; }
+  setHowToPlayHandler(fn: () => void): void { this.onHowToPlay = fn; }
 
   /** Caller wires a mute-toggle handler that returns the new muted state
    *  (so the button can render the correct icon). */
@@ -57,14 +60,15 @@ export class OnScreenControls implements InputAdapter {
   /** Call each frame so the control set reflects the current game phase. */
   update(phase: Phase, mode: GameMode = 'classic', powerMeter = 0): void {
     if (!this.container) return;
-    const playing    = phase === 'playing' || phase === 'paused';
     const pickMode   = phase === 'title' || phase === 'gameOver';
-    const showGame   = playing && this.isTouchLike();
-    const anyVisible = pickMode || phase === 'waveClear' || showGame;
+    const showGame   = (phase === 'playing' || phase === 'paused') && this.isTouchLike();
+    const showPause  = phase === 'paused';
+    const anyVisible = pickMode || phase === 'waveClear' || showGame || showPause;
 
     this.container.style.display  = anyVisible ? '' : 'none';
     this.gameControls!.style.display = showGame    ? '' : 'none';
     this.modePicker!.style.display   = pickMode    ? '' : 'none';
+    this.pauseMenu!.style.display    = showPause   ? '' : 'none';
     this.confirmBtn!.style.display   = phase === 'waveClear' ? '' : 'none';
 
     // FIRE button: visible during VS gameplay when meter is charged
@@ -119,7 +123,34 @@ export class OnScreenControls implements InputAdapter {
       this.onVsOpen?.();
     });
     mp.appendChild(vsBtn);
+    // How to Play button
+    const htpBtn = document.createElement('button');
+    htpBtn.className = 'osc-btn osc-htp';
+    htpBtn.textContent = 'How to Play';
+    htpBtn.setAttribute('aria-label', 'How to play');
+    htpBtn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.onHowToPlay?.();
+    });
+    mp.appendChild(htpBtn);
     this.modePicker = mp;
+
+    // Pause menu — shown on all devices when paused
+    const pm = document.createElement('div');
+    pm.className = 'osc-pause-menu';
+    const resumeBtn = document.createElement('button');
+    resumeBtn.className = 'osc-btn osc-resume';
+    resumeBtn.textContent = 'Resume';
+    resumeBtn.dataset['cmd'] = 'PAUSE_TOGGLE';
+    resumeBtn.setAttribute('aria-label', 'Resume game');
+    const quitBtn = document.createElement('button');
+    quitBtn.className = 'osc-btn osc-quit';
+    quitBtn.textContent = 'Quit to Menu';
+    quitBtn.dataset['cmd'] = 'QUIT_TO_TITLE';
+    quitBtn.setAttribute('aria-label', 'Quit to main menu');
+    pm.append(resumeBtn, quitBtn);
+    this.pauseMenu = pm;
 
     // Game controls (playing / paused)
     const gc = document.createElement('div');
@@ -149,6 +180,7 @@ export class OnScreenControls implements InputAdapter {
 
     c.appendChild(confirmBtn);
     c.appendChild(mp);
+    c.appendChild(pm);
     c.appendChild(gc);
 
     c.addEventListener('pointerdown', (e) => {

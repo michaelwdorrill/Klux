@@ -1162,7 +1162,8 @@ function drawHowToPlay(ctx: CanvasRenderingContext2D, w: number, h: number): voi
         'WILD  ✦   Matches any colour',
         'DOUBLE ■  Doubles the points for any KLUX it joins',
         'NEGATIVE  Scoring this in a KLUX loses points — avoid!',
-        'LOCKED    Can\'t be moved; drop other tiles around it',
+        'LOCKED    Can\'t form a KLUX on its own — triggers when',
+        '          a KLUX fires adjacent to it',
       ],
     },
   ];

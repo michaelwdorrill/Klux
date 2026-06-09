@@ -136,6 +136,9 @@ function applyCommand(state: GameState, cmd: Command): GameState {
   if (cmd.type === 'START_VS') {
     return startGame({ ...state.config, seed: cmd.seed }, 'versus');
   }
+  if (cmd.type === 'QUIT_TO_TITLE') {
+    return { ...startGame(state.config), phase: 'title' };
+  }
 
   // VS effects injected by opponent's power use
   if (cmd.type === 'VS_WIN') {
