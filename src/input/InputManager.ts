@@ -16,6 +16,11 @@ export class InputManager {
     }
   }
 
+  /** Directly enqueue a command (used for server-pushed VS events). */
+  inject(cmd: Command): void {
+    this.queue.push(cmd);
+  }
+
   /** Pull all queued commands and clear the queue. Called once per fixed step. */
   drain(): Command[] {
     return this.queue.splice(0);

@@ -1,6 +1,6 @@
 import type { Command } from './commands';
 import type { InputAdapter } from './InputAdapter';
-import type { Phase } from '../core/types';
+import type { Phase, GameMode } from '../core/types';
 
 
 export class OnScreenControls implements InputAdapter {
@@ -10,8 +10,12 @@ export class OnScreenControls implements InputAdapter {
   private confirmBtn: HTMLButtonElement | null = null;
   private modePicker: HTMLElement | null = null;
   private gameControls: HTMLElement | null = null;
+  private fireBtn: HTMLButtonElement | null = null;
   private muteBtn: HTMLButtonElement | null = null;
   private onMuteToggle: (() => boolean) | null = null;
+  private onVsOpen: (() => void) | null = null;
+
+  setVsHandler(fn: () => void): void { this.onVsOpen = fn; }
 
   /** Caller wires a mute-toggle handler that returns the new muted state
    *  (so the button can render the correct icon). */
@@ -48,18 +52,25 @@ export class OnScreenControls implements InputAdapter {
   }
 
   /** Call each frame so the control set reflects the current game phase. */
-  update(phase: Phase): void {
+  update(phase: Phase, mode: GameMode = 'classic', powerMeter = 0): void {
     if (!this.container) return;
-    const playing = phase === 'playing' || phase === 'paused';
-    const pickMode = phase === 'title' || phase === 'gameOver';
-    const showGameControls = playing && this.isTouchLike();
-    // Hide the whole bar on desktop during gameplay to free up canvas room.
-    const anyVisible = pickMode || (phase === 'waveClear') || showGameControls;
+    const playing    = phase === 'playing' || phase === 'paused';
+    const pickMode   = phase === 'title' || phase === 'gameOver';
+    const showGame   = playing && this.isTouchLike();
+    const anyVisible = pickMode || phase === 'waveClear' || showGame;
 
-    this.container.style.display = anyVisible ? '' : 'none';
-    this.gameControls!.style.display = showGameControls ? '' : 'none';
-    this.modePicker!.style.display = pickMode ? '' : 'none';
-    this.confirmBtn!.style.display = phase === 'waveClear' ? '' : 'none';
+    this.container.style.display  = anyVisible ? '' : 'none';
+    this.gameControls!.style.display = showGame    ? '' : 'none';
+    this.modePicker!.style.display   = pickMode    ? '' : 'none';
+    this.confirmBtn!.style.display   = phase === 'waveClear' ? '' : 'none';
+
+    // FIRE button: visible during VS gameplay when meter is charged
+    if (this.fireBtn) {
+      const level = powerMeter >= 6000 ? 4 : powerMeter >= 4500 ? 3 : powerMeter >= 3000 ? 2 : powerMeter >= 1500 ? 1 : 0;
+      const show  = showGame && mode === 'versus' && level > 0;
+      this.fireBtn.style.display = show ? '' : 'none';
+      if (show) this.fireBtn.textContent = `⚡ LV${level}`;
+    }
   }
 
   private build(): HTMLElement {
@@ -94,6 +105,17 @@ export class OnScreenControls implements InputAdapter {
       <button class="osc-btn osc-mode" data-cmd="START_CLASSIC" aria-label="Classic mode">CLASSIC</button>
       <button class="osc-btn osc-mode" data-cmd="START_ENDLESS" aria-label="Endless mode">ENDLESS</button>
     `;
+    // VS button — triggers the lobby overlay, not a direct game command
+    const vsBtn = document.createElement('button');
+    vsBtn.className = 'osc-btn osc-mode';
+    vsBtn.textContent = 'VS ⚔';
+    vsBtn.setAttribute('aria-label', 'Versus mode');
+    vsBtn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.onVsOpen?.();
+    });
+    mp.appendChild(vsBtn);
     this.modePicker = mp;
 
     // Game controls (playing / paused)
@@ -110,6 +132,16 @@ export class OnScreenControls implements InputAdapter {
         <button class="osc-btn osc-pause" data-cmd="PAUSE_TOGGLE" aria-label="Pause">⏸</button>
       </div>
     `;
+    // FIRE button — VS only, shown/hidden by update()
+    const fireBtn = document.createElement('button');
+    fireBtn.className = 'osc-btn osc-fire';
+    fireBtn.dataset['cmd'] = 'FIRE_POWER';
+    fireBtn.textContent = '⚡ LV1';
+    fireBtn.style.display = 'none';
+    fireBtn.setAttribute('aria-label', 'Fire power');
+    gc.appendChild(fireBtn);
+    this.fireBtn = fireBtn;
+
     this.gameControls = gc;
 
     c.appendChild(confirmBtn);
