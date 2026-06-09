@@ -301,11 +301,13 @@ fetchTitleLeaderboard().catch(() => {});
 let pausedByHide = false;
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
+    audio.suspend();
     if (state.phase === 'playing') {
       state = { ...state, phase: 'paused' };
       pausedByHide = true;
     }
   } else {
+    audio.resume();
     last = performance.now();
     if (pausedByHide && state.phase === 'paused') {
       state = { ...state, phase: 'playing' };

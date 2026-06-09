@@ -48,6 +48,12 @@ export class Audio {
   /** True once the AudioContext is running (either via autoplay or user gesture). */
   get isUnlocked(): boolean { return this.ctx?.state === 'running'; }
 
+  /** Suspend audio output (page hidden / app backgrounded). */
+  suspend(): void { this.ctx?.suspend(); }
+
+  /** Resume audio output (page visible again). */
+  resume(): void { if (this.ctx?.state === 'suspended') this.ctx.resume(); }
+
   /** Call on the first user gesture to satisfy browser autoplay policy. */
   unlock(): void {
     if (this.ctx) {
