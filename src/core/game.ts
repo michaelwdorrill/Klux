@@ -92,7 +92,7 @@ function resolveMatches(state: GameState): GameState {
     if (goal === 'KLUXES') progress += lines.length;
     else if (goal === 'HORIZONTALS') progress += lines.filter((l) => l.orientation === 'horizontal').length;
     else if (goal === 'DIAGONALS') progress += lines.filter((l) => l.orientation === 'diagonal').length;
-    else if (goal === 'SCORE') progress = current.score + points;
+    else if (goal === 'SCORE') progress += points;
 
     const newScore = Math.max(0, current.score + points);
     // VS: positive KLUXes charge the power meter; negative ones drain it
