@@ -100,11 +100,11 @@ export class VsLobby {
     nameLabel.textContent = 'Your name:';
     nameLabel.style.cssText = 'font-size:.85rem;color:rgba(180,180,200,0.8)';
     const nameInput = document.createElement('input');
-    nameInput.maxLength = 3;
+    nameInput.maxLength = 10;
     nameInput.value = localStorage.getItem('klux.v1.vsName') ?? '';
-    nameInput.style.cssText = 'width:64px;height:38px;font-size:1.4rem;font-weight:bold;text-align:center;text-transform:uppercase;background:#1a1a2e;color:#ffd166;border:2px solid #4a90d9;border-radius:6px;outline:none;letter-spacing:.15em';
+    nameInput.style.cssText = 'width:160px;height:36px;font-size:1.05rem;font-weight:bold;text-align:center;text-transform:uppercase;background:#1a1a2e;color:#ffd166;border:2px solid #4a90d9;border-radius:6px;outline:none;letter-spacing:.08em';
     nameInput.addEventListener('input', () => {
-      nameInput.value = nameInput.value.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 3);
+      nameInput.value = nameInput.value.replace(/[^a-zA-Z0-9 _-]/g, '').toUpperCase().slice(0, 10);
       localStorage.setItem('klux.v1.vsName', nameInput.value);
     });
     nameRow.append(nameLabel, nameInput);
