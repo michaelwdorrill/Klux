@@ -103,7 +103,7 @@ function resolveMatches(state: GameState): GameState {
       ...current,
       well: clearCells(current.well, positions),
       score: newScore,
-      waveProgress: goal === 'SCORE' ? newScore : progress,
+      waveProgress: progress,
       kluxCount: current.kluxCount + lines.length,
       vsPowerMeter: newPower,
     };
